@@ -89,17 +89,23 @@ def split_train_val(train, val_split):
 if args.dataset == 'cifar10':
 
     if args.grayscale:
+        def tmp_func1(x):
+            x.view(1, 1024).t()
+
         transform = transforms.Compose([
             transforms.Grayscale(),
             transforms.ToTensor(),
             transforms.Normalize(mean=122.6 / 255.0, std=61.0 / 255.0),
-            transforms.Lambda(lambda x: x.view(1, 1024).t())
+            transforms.Lambda(tmp_func1)
         ])
     else:
+        def tmp_func2(x):
+            x.view(3, 1024).t()
+
         transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-            transforms.Lambda(lambda x: x.view(3, 1024).t())
+            transforms.Lambda(tmp_func2)
         ])
 
     # S4 is trained on sequences with no data augmentation!
@@ -120,10 +126,12 @@ if args.dataset == 'cifar10':
     d_output = 10
 
 elif args.dataset == 'mnist':
+    def tmp_func3(x):
+        x.view(1, 784).t()
 
     transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Lambda(lambda x: x.view(1, 784).t())
+        transforms.Lambda(tmp_func3)
     ])
     transform_train = transform_test = transform
 

@@ -1,2 +1,2 @@
-from . import audio, basic, et, lm, lra, synthetic, ts, vision
+from . import basic, et, lm, lra, synthetic, ts #audio,
 from .base import SequenceDataset

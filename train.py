@@ -148,10 +148,10 @@ class SequenceLightningModule(pl.LightningModule):
         if not self.hparams.train.disable_dataset:
             self.dataset.setup()
 
-        # We need to set up the model in setup() because for some reason when training with DDP, one GPU uses much more memory than the others
-        # In order to not overwrite the model multiple times during different stages, we need this hack
-        # TODO PL 1.5 seems to have an option to skip hooks to avoid this
-        # https://github.com/PyTorchLightning/pytorch-lightning/issues/5410#issuecomment-762257024
+        # We need to set up the model in setup() because for some reason when training with DDP, one GPU uses much
+        # more memory than the others In order to not overwrite the model multiple times during different stages,
+        # we need this hack TODO PL 1.5 seems to have an option to skip hooks to avoid this
+        #  https://github.com/PyTorchLightning/pytorch-lightning/issues/5410#issuecomment-762257024
         if self._has_setup:
             return
         else:

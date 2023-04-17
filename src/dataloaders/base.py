@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
-import torchaudio.functional as TF
+#import torchaudio.functional as TF
 import torchvision
 from einops import rearrange
 from einops.layers.torch import Rearrange
@@ -30,7 +30,11 @@ else:
 class DefaultCollateMixin:
     """Controls collating in the DataLoader
 
-    The CollateMixin classes instantiate a dataloader by separating collate arguments with the rest of the dataloader arguments. Instantiations of this class should modify the callback functions as desired, and modify the collate_args list. The class then defines a _dataloader() method which takes in a DataLoader constructor and arguments, constructs a collate_fn based on the collate_args, and passes the rest of the arguments into the constructor.
+    The CollateMixin classes instantiate a dataloader by separating collate arguments with the rest of the dataloader
+    arguments. Instantiations of this class should modify the callback functions as desired, and modify the
+    collate_args list. The class then defines a _dataloader() method which takes in a DataLoader constructor and
+    arguments, constructs a collate_fn based on the collate_args, and passes the rest of the arguments into the
+    constructor.
     """
 
     @classmethod
@@ -235,8 +239,9 @@ class TBPTTDataLoader(torch.utils.data.DataLoader):
         raise NotImplementedError()
 
 
-# class SequenceDataset(LightningDataModule):
-# [21-09-10 AG] Subclassing LightningDataModule fails due to trying to access _has_setup_fit. No idea why. So we just provide our own class with the same core methods as LightningDataModule (e.g. setup)
+# class SequenceDataset(LightningDataModule): [21-09-10 AG] Subclassing LightningDataModule fails due to trying to
+# access _has_setup_fit. No idea why. So we just provide our own class with the same core methods as
+# LightningDataModule (e.g. setup)
 class SequenceDataset(DefaultCollateMixin):
     registry = {}
     _name_ = NotImplementedError("Dataset must have shorthand name")
