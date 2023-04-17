@@ -6,13 +6,14 @@ All the preprocessing done in the .ipynb could be shifted inside these classes t
 it is not present yet. Moreover, hyperparams could be used to configure which exact dataset should be loaded.
 
 """
-
+import math
 import os
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils import data
 from torch.utils.data import Dataset, DataLoader
+import pickle
 
 import warnings
 
@@ -21,48 +22,72 @@ warnings.filterwarnings("ignore")
 from src.dataloaders.base import SequenceDataset, default_data_path
 
 
-#erstmal ein data set mit train und test. train wird dann in train und val aufgeteilt.
-
 class CustomTrafficDataset(Dataset):
+
     def __init__(
             self,
-            root_path,
-            pickle_file_path,
-            pickle_file_name="univ2",
+            data_path,
+            prediction_length,
+            pickle_file_name="tensor_data.pkl",
             flag="train",
-            size=None,
-            data_path="univ2",
+            context_length=75,
+            meta_batch_size=3500,
     ):
-        # size [seq_len, label_len, pred_len]
-        # info
-        if size is None:
-            self.seq_len = 24 * 4 * 4
-            self.label_len = 24 * 4
-            self.pred_len = 24 * 4
-        else:
-            self.seq_len = size[0]
-            self.label_len = size[1]
-            self.pred_len = size[2]
         # init
-        assert flag in ["train", "test", "val"]
-        type_map = {"train": 0, "val": 1, "test": 2}
+        assert flag in ["train", "test"]
+        type_map = {"train": 0, "test": 1}
         self.set_type = type_map[flag]
-        self.forecast_horizon = self.pred_len
 
-        self.root_path = root_path
         self.data_path = data_path
+        self.pickle_file_name = pickle_file_name
+        if prediction_length is None:
+            self.prediction_length = context_length
+        self.context_length = context_length
+        self.meta_batch_size = meta_batch_size
         self.__read_data__()
 
     def __read_data__(self):
         # put data from file into a tensor once the class is created
         # depending on the flag create the train, validation or test set
-        pass
+
+        # Train takes the first 80 flows and test takes the last 20
+
+        # Load the tensor from the file using pickle
+        complete_path = os.path.join(self.data_path, self.pickle_file_name)
+
+        with open(complete_path, 'rb') as f:
+            self.train_obs = pickle.load(f)
+
+        # 80 percent of the batches are used for training, 20 for testing
+        num_train_batches = math.floor(self.train_obs.shape[0] * 0.8)
+        if self.set_type == 0:  # train
+            self.train_obs = self.train_obs[:num_train_batches]
+        else:  # test
+            self.train_obs = self.train_obs[num_train_batches:]
+
+        num_paths, len_path = self.train_obs.shape[:2]
+        idx_path = np.random.randint(0, num_paths,
+                                     size=self.meta_batch_size)  # task index, which gets mixed along the  ## would
+        # select flow numbers,e.g 3500 times from 1st flow to last tarin flow
+
+        # process
+        idx_batch = np.random.randint(self.context_length, len_path - self.prediction_length,
+                                      size=self.meta_batch_size)  # would select some middle points from time-steps [
+        # 0:10000], 3500 times
+
+        self.obs_batch = np.array([self.train_obs[ip,
+                                   ib - self.context_length:ib + self.prediction_length, :].numpy()
+                                   for ip, ib in zip(idx_path, idx_batch)], dtype=object)
+
+        # drop timeseries only consisting of zeros
+        # seems like the most of them are actually full of zeros
+        # also this code does not take overlapping into concern
 
     def __getitem__(self, idx):
-        return torch.tensor(seq_x), torch.tensor(seq_y), torch.tensor(mark), torch.tensor(mask)
+        return self.obs_batch[idx, :self.context_length, :], self.obs_batch[idx, self.context_length:, :]
 
     def __len__(self):
-        return len(self.data_x) - self.seq_len - self.pred_len + 1
+        return self.obs_batch.shape[0]
 
     @property
     def d_input(self):
@@ -81,9 +106,9 @@ class CustomTrafficDataset(Dataset):
         #     raise NotImplementedError
 
 
+class CustomTrafficSequenceDataset(SequenceDataset):
+    _name_ = "traffic"
 
-
-class TrafficSequenceDataset(SequenceDataset):
     @property
     def d_input(self):
         return self.dataset_train.d_input
@@ -97,24 +122,16 @@ class TrafficSequenceDataset(SequenceDataset):
         return self.dataset_train.pred_len
 
     def setup(self):
-
-        self.dataset_train = TrafficDataset(
-            root_path=self.data_dir,
+        self.dataset_train = CustomTrafficDataset(
             flag="train",
-            size=self.size,
-            data_path="univ2",
+            data_path=self.data_dir,
+            pickle_file_name="tensor_data.pkl",
         )
+        self.split_train_val(0.9)
 
-        self.dataset_val = TrafficDataset(
-            root_path=self.data_dir,
-            flag="val",
-            size=self.size,
-            data_path="univ2",
-        )
-
-        self.dataset_test = TrafficDataset(
-            root_path=self.data_dir,
+        self.dataset_test = CustomTrafficDataset(
             flag="test",
-            size=self.size,
-            data_path="univ2",
+            data_path=self.data_dir,
+            pickle_file_name="tensor_data.pkl",
+            meta_batch_size=700,
         )
