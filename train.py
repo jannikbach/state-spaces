@@ -132,9 +132,15 @@ class SequenceLightningModule(pl.LightningModule):
         self.save_hyperparameters(config, logger=False)
 
         # Dataset arguments
+        print("fst registry:")
+        print(SequenceDataset.registry)
+
         self.dataset = SequenceDataset.registry[self.hparams.dataset._name_](
             **self.hparams.dataset
         )
+        #
+        # print("snd registry:")
+        # print(SequenceDataset.registry)
 
         # Check hparams
         self._check_config()

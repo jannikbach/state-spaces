@@ -3,7 +3,8 @@
 Dataset: https://github.com/zhouhaoyi/ETDataset
 Dataloader: https://github.com/zhouhaoyi/Informer2020
 """
-
+import math
+import pickle
 from typing import List
 import os
 import numpy as np
@@ -15,6 +16,7 @@ from torch.utils import data
 from torch.utils.data import Dataset, DataLoader
 
 import warnings
+
 warnings.filterwarnings("ignore")
 
 from src.dataloaders.base import SequenceDataset, default_data_path
@@ -227,20 +229,20 @@ class StandardScaler:
 
 class InformerDataset(Dataset):
     def __init__(
-        self,
-        root_path,
-        flag="train",
-        size=None,
-        features="S",
-        data_path="ETTh1.csv",
-        target="OT",
-        scale=True,
-        inverse=False,
-        timeenc=0,
-        freq="h",
-        cols=None,
-        eval_stamp=False,
-        eval_mask=False,
+            self,
+            root_path,
+            flag="train",
+            size=None,
+            features="S",
+            data_path="ETTh1.csv",
+            target="OT",
+            scale=True,
+            inverse=False,
+            timeenc=0,
+            freq="h",
+            cols=None,
+            eval_stamp=False,
+            eval_mask=False,
     ):
         # size [seq_len, label_len, pred_len]
         # info
@@ -307,7 +309,7 @@ class InformerDataset(Dataset):
             df_data = df_raw[[self.target]]
 
         if self.scale:
-            train_data = df_data[border1s[0] : border2s[0]]
+            train_data = df_data[border1s[0]: border2s[0]]
             self.scaler.fit(train_data.values)
             data = self.scaler.transform(df_data.values)
         else:
@@ -339,8 +341,8 @@ class InformerDataset(Dataset):
         if self.inverse:
             seq_y = np.concatenate(
                 [
-                    self.data_x[r_begin : r_begin + self.label_len],
-                    self.data_y[r_begin + self.label_len : r_end],
+                    self.data_x[r_begin: r_begin + self.label_len],
+                    self.data_y[r_begin + self.label_len: r_end],
                 ],
                 0,
             )
@@ -460,9 +462,11 @@ class _Dataset_Weather(InformerDataset):
     def __init__(self, data_path="WTH.csv", target="WetBulbCelsius", **kwargs):
         super().__init__(data_path=data_path, target=target, **kwargs)
 
+
 class _Dataset_ECL(InformerDataset):
     def __init__(self, data_path="ECL.csv", target="MT_320", **kwargs):
         super().__init__(data_path=data_path, target=target, **kwargs)
+
 
 class InformerSequenceDataset(SequenceDataset):
 
@@ -486,7 +490,7 @@ class InformerSequenceDataset(SequenceDataset):
     def _get_data_filename(self, variant):
         return self.variants[variant]
 
-    _collate_arg_names = ["mark", "mask"] # Names of the two extra tensors that the InformerDataset returns
+    _collate_arg_names = ["mark", "mask"]  # Names of the two extra tensors that the InformerDataset returns
 
     def setup(self):
         self.data_dir = self.data_dir or default_data_path / 'informer' / self._name_
@@ -539,6 +543,7 @@ class InformerSequenceDataset(SequenceDataset):
             eval_mask=self.eval_mask,
         )
 
+
 class ETTHour(InformerSequenceDataset):
     _name_ = "etth"
 
@@ -560,6 +565,7 @@ class ETTHour(InformerSequenceDataset):
         0: "ETTh1.csv",
         1: "ETTh2.csv",
     }
+
 
 class ETTMinute(InformerSequenceDataset):
     _name_ = "ettm"
@@ -583,6 +589,7 @@ class ETTMinute(InformerSequenceDataset):
         1: "ETTm2.csv",
     }
 
+
 class Weather(InformerSequenceDataset):
     _name_ = "weather"
 
@@ -604,6 +611,7 @@ class Weather(InformerSequenceDataset):
         0: "WTH.csv",
     }
 
+
 class ECL(InformerSequenceDataset):
     _name_ = "ecl"
 
@@ -624,3 +632,130 @@ class ECL(InformerSequenceDataset):
     variants = {
         0: "ECL.csv",
     }
+
+
+class CustomTrafficDataset(Dataset):
+    def __init__(
+            self,
+            data_path=None,
+            pickle_file_name="tensor_data.pkl",
+            flag="train",
+            context_length=75,
+            prediction_length=None,
+            meta_batch_size=3500,
+            **kwargs,
+    ):
+
+        super().__init__(**kwargs)
+        # init
+        assert flag in ["train", "test"]
+        type_map = {"train": 0, "test": 1}
+        self.set_type = type_map[flag]
+
+        self.data_path = data_path
+        self.pickle_file_name = pickle_file_name
+        if prediction_length is None:
+            self.prediction_length = context_length
+        if self.data_path is None:
+            self.data_path = default_data_path
+        self.context_length = context_length
+        self.meta_batch_size = meta_batch_size
+        self.__read_data__()
+
+    def __read_data__(self):
+        # put data from file into a tensor once the class is created
+        # depending on the flag create the train, validation or test set
+
+        # Train takes the first 80 flows and test takes the last 20
+
+        # Load the tensor from the file using pickle
+        complete_path = os.path.join(self.data_path, self.pickle_file_name)
+
+        with open(complete_path, 'rb') as f:
+            self.train_obs = pickle.load(f)
+
+        # 80 percent of the batches are used for training, 20 for testing
+        num_train_batches = math.floor(self.train_obs.shape[0] * 0.8)
+        if self.set_type == 0:  # train
+            self.train_obs = self.train_obs[:num_train_batches]
+        else:  # test
+            self.train_obs = self.train_obs[num_train_batches:]
+
+        num_paths, len_path = self.train_obs.shape[:2]
+        idx_path = np.random.randint(0, num_paths,
+                                     size=self.meta_batch_size)  # task index, which gets mixed along the  ## would
+        # select flow numbers,e.g 3500 times from 1st flow to last tarin flow
+
+        # process
+        idx_batch = np.random.randint(self.context_length, len_path - self.prediction_length,
+                                      size=self.meta_batch_size)  # would select some middle points from time-steps [
+        # 0:10000], 3500 times
+
+        self.obs_batch = np.array([self.train_obs[ip,
+                                   ib - self.context_length:ib + self.prediction_length, :].numpy()
+                                   for ip, ib in zip(idx_path, idx_batch)])
+
+        # drop timeseries only consisting of zeros
+        # seems like the most of them are actually full of zeros
+        # also this code does not take overlapping into concern
+
+    def __getitem__(self, idx):
+        return self.obs_batch[idx, :self.context_length, :], self.obs_batch[idx, self.context_length:, :]
+
+    def __len__(self):
+        return self.obs_batch.shape[0]
+
+    @property
+    def d_input(self):
+        raise NotImplementedError
+        # todo: find out what this stands for and how it is used. Maybe i can just leave it out for now.
+        # maybe sequence lenth for both
+        # return self.context_length
+
+        # return self.data_x.shape[-1]
+
+    @property
+    def d_output(self):
+        raise NotImplementedError
+        # if self.features in ["M", "S"]:
+        #     return self.data_x.shape[-1]
+        # elif self.features == "MS":
+        #     return 1
+        # else:
+        #     raise NotImplementedError
+
+        # maybe sequence lenth for both
+        # return self.context_length
+
+
+class CustomTrafficSequenceDataset(SequenceDataset):
+    _name_ = "traffic"
+
+    @property
+    def d_input(self):
+        return self.dataset_train.d_input
+
+    @property
+    def d_output(self):
+        return self.dataset_train.d_output
+
+    @property
+    def l_output(self):
+        return self.dataset_train.prediction_length
+
+    def setup(self):
+        print("datadir")
+        print(default_data_path)
+
+
+        self.dataset_train = CustomTrafficDataset(
+            flag="train",
+            pickle_file_name="tensor_data.pkl",
+        )
+        self.split_train_val(0.9)
+
+        self.dataset_test = CustomTrafficDataset(
+            flag="test",
+            pickle_file_name="tensor_data.pkl",
+            meta_batch_size=700,
+        )
