@@ -53,6 +53,7 @@ def extract_attrs_from_obj(obj, *attrs):
     if obj is None:
         assert len(attrs) == 0
         return []
+    print(attrs)
     return [getattr(obj, attr, None) for attr in attrs]
 
 

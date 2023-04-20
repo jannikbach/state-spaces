@@ -707,8 +707,7 @@ class CustomTrafficDataset(Dataset):
 
     @property
     def d_input(self):
-        raise NotImplementedError
-        # todo: find out what this stands for and how it is used. Maybe i can just leave it out for now.
+        return self.context_length
         # maybe sequence lenth for both
         # return self.context_length
 
@@ -716,7 +715,7 @@ class CustomTrafficDataset(Dataset):
 
     @property
     def d_output(self):
-        raise NotImplementedError
+        return self.prediction_length
         # if self.features in ["M", "S"]:
         #     return self.data_x.shape[-1]
         # elif self.features == "MS":
@@ -727,21 +726,32 @@ class CustomTrafficDataset(Dataset):
         # maybe sequence lenth for both
         # return self.context_length
 
+    @property
+    def l_output(self):
+        return self.prediction_length
+
 
 class CustomTrafficSequenceDataset(SequenceDataset):
     _name_ = "traffic"
 
     @property
     def d_input(self):
-        return self.dataset_train.d_input
+        return self.dataset_train.shape[-1]
+        # I assume this is the dimension of the data that goes into the encoder, which in this case is
+        # feature dimension (1)
+
+    #d_model = 128, d_output = 128
 
     @property
     def d_output(self):
-        return self.dataset_train.d_output
+        return self.dataset_train.shape[-1]
+        #prediction feature dimension (same as input dimension)
 
     @property
     def l_output(self):
-        return self.dataset_train.prediction_length
+        return self.dataset_train.l_output
+        # this is the dimension the decoder should transfer to
+        # is will be [batch-size, l_output, d_output]
 
     def setup(self):
         print("datadir")
