@@ -11,7 +11,8 @@ train:
   monitor: val/loss # Needed for plateau scheduler
   mode: min
 
-encoder: linear
+encoder:
+  - linear
 
 decoder:
   _name_: sequence

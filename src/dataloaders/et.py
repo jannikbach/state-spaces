@@ -7,6 +7,8 @@ import math
 import pickle
 from typing import List
 import os
+
+import numpy
 import numpy as np
 import pandas as pd
 from pandas.tseries import offsets
@@ -681,23 +683,48 @@ class CustomTrafficDataset(Dataset):
         else:  # test
             self.train_obs = self.train_obs[num_train_batches:]
 
-        num_paths, len_path = self.train_obs.shape[:2]
-        idx_path = np.random.randint(0, num_paths,
-                                     size=self.meta_batch_size)  # task index, which gets mixed along the  ## would
-        # select flow numbers,e.g 3500 times from 1st flow to last tarin flow
+        num_paths, len_path, features = self.train_obs.shape
 
-        # process
-        idx_batch = np.random.randint(self.context_length, len_path - self.prediction_length,
-                                      size=self.meta_batch_size)  # would select some middle points from time-steps [
-        # 0:10000], 3500 times
+        # Iterator that fills the np.array till it is full with non zero values
+        # make sure random numbers only appear once
 
-        self.obs_batch = np.array([self.train_obs[ip,
-                                   ib - self.context_length:ib + self.prediction_length, :].numpy()
-                                   for ip, ib in zip(idx_path, idx_batch)])
+        n = 0
+        used_points = []
+        self.obs_batch = np.zeros([self.meta_batch_size, self.context_length+self.prediction_length, features], dtype=np.float32)
 
-        # drop timeseries only consisting of zeros
-        # seems like the most of them are actually full of zeros
-        # also this code does not take overlapping into concern
+        while n < self.meta_batch_size:
+            batch = np.random.randint(0, num_paths)
+            middle_point = np.random.randint(self.context_length, len_path - self.prediction_length)
+            if (batch, middle_point) not in used_points:
+                candidate = self.train_obs[batch,
+                            middle_point - self.context_length:middle_point + self.prediction_length, :].numpy()
+                if not np.all(candidate==0):
+                    used_points.append((batch, middle_point))
+                    n += 1
+                    print(candidate)
+                    np.insert(self.obs_batch, n, candidate, axis=0)
+
+
+
+        # Old Code for meta batch generation
+        #
+        # idx_path = np.random.randint(0, num_paths,
+        #                              size=self.meta_batch_size)  # task index, which gets mixed along the  ## would
+        # # select flow numbers,e.g 3500 times from 1st flow to last tarin flow
+        #
+        # # process
+        # idx_batch = np.random.randint(self.context_length, len_path - self.prediction_length,
+        #                               size=self.meta_batch_size)  # would select some middle points from time-steps [
+        # # 0:10000], 3500 times
+        #
+        # self.obs_batch = np.array([self.train_obs[ip,
+        #                            ib - self.context_length:ib + self.prediction_length, :].numpy()
+        #                            for ip, ib in zip(idx_path, idx_batch)])
+        #
+        # # drop timeseries only consisting of zeros
+        # # seems like the most of them are actually full of zeros
+        # # also this code does not take overlapping into concern
+
 
     def __getitem__(self, idx):
         return self.obs_batch[idx, :self.context_length, :], self.obs_batch[idx, self.context_length:, :]
@@ -707,24 +734,11 @@ class CustomTrafficDataset(Dataset):
 
     @property
     def d_input(self):
-        return self.context_length
-        # maybe sequence lenth for both
-        # return self.context_length
-
-        # return self.data_x.shape[-1]
+        return self.obs_batch.shape[-1]
 
     @property
     def d_output(self):
-        return self.prediction_length
-        # if self.features in ["M", "S"]:
-        #     return self.data_x.shape[-1]
-        # elif self.features == "MS":
-        #     return 1
-        # else:
-        #     raise NotImplementedError
-
-        # maybe sequence lenth for both
-        # return self.context_length
+        return self.obs_batch.shape[-1]
 
     @property
     def l_output(self):
@@ -736,36 +750,34 @@ class CustomTrafficSequenceDataset(SequenceDataset):
 
     @property
     def d_input(self):
-        return self.dataset_train.shape[-1]
+        return self.dataset_test.d_input
         # I assume this is the dimension of the data that goes into the encoder, which in this case is
         # feature dimension (1)
 
-    #d_model = 128, d_output = 128
+    # d_model = 128, d_output = 128
 
     @property
     def d_output(self):
-        return self.dataset_train.shape[-1]
-        #prediction feature dimension (same as input dimension)
+        return self.dataset_test.d_output
+        # prediction feature dimension (same as input dimension)
 
     @property
     def l_output(self):
-        return self.dataset_train.l_output
+        return self.dataset_test.l_output
         # this is the dimension the decoder should transfer to
         # is will be [batch-size, l_output, d_output]
 
     def setup(self):
-        print("datadir")
-        print(default_data_path)
-
-
         self.dataset_train = CustomTrafficDataset(
             flag="train",
             pickle_file_name="tensor_data.pkl",
+            meta_batch_size=1000,
         )
-        self.split_train_val(0.9)
+
+        self.split_train_val(0.9)  # be careful, after the splitting the attributes are no longer accessible
 
         self.dataset_test = CustomTrafficDataset(
             flag="test",
             pickle_file_name="tensor_data.pkl",
-            meta_batch_size=700,
+            meta_batch_size=70,
         )

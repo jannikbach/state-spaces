@@ -428,7 +428,6 @@ class WikiText103(WikiText2):
     _name_ = "wt103"
 
     def _vocab_count(self):
-        print(self.data_dir)
         self.vocab.count_file(self.data_dir / "train.txt")
 
 

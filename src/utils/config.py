@@ -53,8 +53,14 @@ def extract_attrs_from_obj(obj, *attrs):
     if obj is None:
         assert len(attrs) == 0
         return []
-    print(attrs)
-    return [getattr(obj, attr, None) for attr in attrs]
+
+
+    attrs_final = [getattr(obj, attr, None) for attr in attrs]
+    # print("Obj: ", obj)
+    # print("Attrname: ", attrs)
+    # print("Attrvalue:", attrs_final)
+
+    return attrs_final
 
 
 def instantiate(registry, config, *args, partial=False, wrap=None, **kwargs):
