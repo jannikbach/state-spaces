@@ -26,6 +26,7 @@ class ParamsLog(pl.Callback):
 
     @rank_zero_only
     def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        print("this is the fit start")
         logs = {}
         if self._log_stats.total_params_log:
             logs["params/total"] = sum(p.numel() for p in pl_module.parameters())
@@ -37,3 +38,7 @@ class ParamsLog(pl.Callback):
                                                      if not p.requires_grad)
         if trainer.logger:
             trainer.logger.log_hyperparams(logs)
+
+    @rank_zero_only
+    def on_test_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        print("this is test start")

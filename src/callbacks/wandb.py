@@ -7,6 +7,7 @@ import glob
 import os
 from typing import List
 
+import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sn
@@ -278,3 +279,4 @@ class LogDT(Callback):
         if torch.distributed.is_initialized() and torch.distributed.get_rank() == 0:
             if trainer.logger is not None:
                 trainer.logger.experiment.log(log_dict)
+

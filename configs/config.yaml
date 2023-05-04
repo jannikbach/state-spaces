@@ -14,6 +14,7 @@ defaults:
     - base
     - checkpoint
     - rich # RichProgressBar and RichModelSummary
+    - plot
 
 # Additional arguments used to configure the training loop
 # Most of these set combinations of options in the PL trainer, add callbacks, or add features to the optimizer
@@ -26,7 +27,7 @@ train:
   monitor: ??? # Should be specified by pipeline. Used by scheduler (plateau) and checkpointer
   mode: ??? # Should be specified by pipeline. Used by scheduler (plateau) and checkpointer
   ema: 0.0 # Moving average model for validation # TODO move into callback
-  test: False # Test after training
+  test: True # Test after training
   debug: False # Special settings to make debugging more convenient
   ignore_warnings: False # Disable python warnings
 

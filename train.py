@@ -308,7 +308,7 @@ class SequenceLightningModule(pl.LightningModule):
         x, state = self.model(x, **w, state=self._state)
         self._state = state
         x, w = self.decoder(x, state=state, **z)
-        return x, y, w
+        return x, y, w # y does not change, semms to be the ground truth and x is the prediction by the model.
 
     def step(self, x_t):
         x_t, *_ = self.encoder(x_t) # Potential edge case for encoders that expect (B, L, H)?
@@ -323,19 +323,26 @@ class SequenceLightningModule(pl.LightningModule):
     def _shared_step(self, batch, batch_idx, prefix="train"):
 
         self._process_state(batch, batch_idx, train=(prefix == "train"))
+        # i guess that here we get the prediciton as well as the ground truth
+        # maybe it is worth visualizing this data
 
         x, y, w = self.forward(batch)
+        # I guess x has to be the prediction value but i have to check in the docs
+
 
         # Loss
         if prefix == 'train':
             loss = self.loss(x, y, **w)
         else:
-            loss = self.loss_val(x, y, **w)
+            loss = self.loss_val(x, y, **w) #step into!!!!
 
         # Metrics
-        metrics = self.metrics(x, y, **w)
+        metrics = self.metrics(x, y, **w) #hier wird mse gesetzt # hier vllt die beiden y und batch[1] setzten
         metrics["loss"] = loss
-        metrics = {f"{prefix}/{k}": v for k, v in metrics.items()}
+        metrics = {f"{prefix}/{k}": v for k, v in metrics.items()} #this dict needs to also have the pred and the ground truth i it is the testing phase
+
+        if prefix == 'test':
+            print("test")
 
         # Calculate torchmetrics: these are accumulated and logged at the end of epochs
         self.task.torchmetrics(x, y, prefix)
@@ -348,7 +355,7 @@ class SequenceLightningModule(pl.LightningModule):
             add_dataloader_idx=False,
             sync_dist=True,
         )
-        return loss
+        return loss #nur ein tensor wird zurückgegeben # hier vllt auch die pred und grputntruth als dict zurückgeben
 
     def on_train_epoch_start(self):
         self._on_epoch_start()
@@ -457,6 +464,8 @@ class SequenceLightningModule(pl.LightningModule):
     def test_step(self, batch, batch_idx, dataloader_idx=0):
         return self._shared_step(
             batch, batch_idx, prefix=self.test_loader_names[dataloader_idx]
+            # chatGPT states that these return values are acuumulated and cna be accessed in callbacks using trainer.callback_metrics
+            # maybe i have to call self.
         )
 
     def configure_optimizers(self):

@@ -5,7 +5,7 @@ defaults:
   - override /dataset: traffic
 
 trainer:
-  max_epochs: 10
+  max_epochs: 1
 
 loader:
   batch_size: 50

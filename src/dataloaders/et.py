@@ -701,7 +701,6 @@ class CustomTrafficDataset(Dataset):
                 if not np.all(candidate==0):
                     used_points.append((batch, middle_point))
                     n += 1
-                    print(candidate)
                     np.insert(self.obs_batch, n, candidate, axis=0)
 
 
@@ -771,13 +770,12 @@ class CustomTrafficSequenceDataset(SequenceDataset):
         self.dataset_train = CustomTrafficDataset(
             flag="train",
             pickle_file_name="tensor_data.pkl",
-            meta_batch_size=1000,
         )
 
-        self.split_train_val(0.9)  # be careful, after the splitting the attributes are no longer accessible
+        self.split_train_val(0.1) # be careful, after the splitting the attributes are no longer accessible
 
         self.dataset_test = CustomTrafficDataset(
             flag="test",
             pickle_file_name="tensor_data.pkl",
-            meta_batch_size=70,
+            meta_batch_size=700,
         )
