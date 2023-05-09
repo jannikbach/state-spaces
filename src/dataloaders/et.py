@@ -698,10 +698,14 @@ class CustomTrafficDataset(Dataset):
             if (batch, middle_point) not in used_points:
                 candidate = self.train_obs[batch,
                             middle_point - self.context_length:middle_point + self.prediction_length, :].numpy()
-                if not np.all(candidate==0):
+                #assure context and prediction have at least one non zero value
+                if (not np.all(candidate[:self.context_length]==0)) & (not np.all(candidate[self.context_length:]==0)):
                     used_points.append((batch, middle_point))
+                    # self.obs_batch = np.insert(self.obs_batch, n, candidate, axis=0)
+                    # same as above but in place
+                    self.obs_batch[n:n+1, :, :] = candidate[np.newaxis, :]
+
                     n += 1
-                    np.insert(self.obs_batch, n, candidate, axis=0)
 
 
 
@@ -743,6 +747,10 @@ class CustomTrafficDataset(Dataset):
     def l_output(self):
         return self.prediction_length
 
+    @property
+    def forecast_horizon(self):
+        return self.prediction_length
+
 
 class CustomTrafficSequenceDataset(SequenceDataset):
     _name_ = "traffic"
@@ -765,6 +773,10 @@ class CustomTrafficSequenceDataset(SequenceDataset):
         return self.dataset_test.l_output
         # this is the dimension the decoder should transfer to
         # is will be [batch-size, l_output, d_output]
+
+    @property
+    def forecast_horizon(self):
+        return self.dataset_test.forecast_horizon
 
     def setup(self):
         self.dataset_train = CustomTrafficDataset(

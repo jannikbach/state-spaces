@@ -6,10 +6,12 @@ import torch.nn.functional as F
 from sklearn.metrics import f1_score, roc_auc_score
 from functools import partial
 
+
 def _student_t_map(mu, sigma, nu):
     sigma = F.softplus(sigma)
     nu = 2.0 + F.softplus(nu)
     return mu.squeeze(axis=-1), sigma.squeeze(axis=-1), nu.squeeze(axis=-1)
+
 
 def student_t_loss(outs, y):
     mu, sigma, nu = outs[..., 0], outs[..., 1], outs[..., 2]
@@ -19,25 +21,27 @@ def student_t_loss(outs, y):
     nup1_half = (nu + 1.0) / 2.0
     part1 = 1.0 / nu * torch.square((y - mu) / sigma)
     Z = (
-        torch.lgamma(nup1_half)
-        - torch.lgamma(nu / 2.0)
-        - 0.5 * torch.log(math.pi * nu)
-        - torch.log(sigma)
+            torch.lgamma(nup1_half)
+            - torch.lgamma(nu / 2.0)
+            - 0.5 * torch.log(math.pi * nu)
+            - torch.log(sigma)
     )
 
     ll = Z - nup1_half * torch.log1p(part1)
     return -ll.mean()
+
 
 def gaussian_ll_loss(outs, y):
     mu, sigma = outs[..., 0], outs[..., 1]
     y = y.squeeze(axis=-1)
     sigma = F.softplus(sigma)
     ll = -1.0 * (
-        torch.log(sigma)
-        + 0.5 * math.log(2 * math.pi)
-        + 0.5 * torch.square((y - mu) / sigma)
+            torch.log(sigma)
+            + 0.5 * math.log(2 * math.pi)
+            + 0.5 * torch.square((y - mu) / sigma)
     )
     return -ll.mean()
+
 
 def binary_cross_entropy(logits, y):
     # BCE loss requires squeezing last dimension of logits so it has the same shape as y
@@ -136,9 +140,11 @@ def mse(outs, y, len_batch=None):
         y_masked = torch.masked_select(y, mask)
         return F.mse_loss(outs_masked, y_masked)
 
+
 def forecast_rmse(outs, y, len_batch=None):
     # TODO: generalize, currently for Monash dataset
     return torch.sqrt(F.mse_loss(outs, y, reduction='none').mean(1)).mean()
+
 
 def mae(outs, y, len_batch=None):
     # assert outs.shape[:-1] == y.shape and outs.shape[-1] == 1
@@ -159,18 +165,23 @@ def mae(outs, y, len_batch=None):
 
 
 """Metrics that can depend on the loss."""
+
+
 def loss(x, y, loss_fn):
     """Metric that just returns the loss function.
 
     This metric may be useful because the training loss may add extra regularization (e.g. weight decay implemented as L2 penalty), while adding this as a metric skips the additional losses """
     return loss_fn(x, y)
 
+
 def bpb(x, y, loss_fn):
     """Bits per byte (for image density estimation, speech generation, char LM)."""
     return loss_fn(x, y) / math.log(2)
 
+
 def ppl(x, y, loss_fn):
     return torch.exp(loss_fn(x, y))
+
 
 
 # Should be a better way to do this
@@ -194,14 +205,18 @@ output_metric_fns = {
     "soft_cross_entropy": soft_cross_entropy,  # only for pytorch 1.10+
     "student_t": student_t_loss,
     "gaussian_ll": gaussian_ll_loss,
+
+
 }
 
 try:
     from segmentation_models_pytorch.utils.functional import iou
     from segmentation_models_pytorch.losses.focal import focal_loss_with_logits
 
+
     def iou_with_logits(pr, gt, eps=1e-7, threshold=None, ignore_channels=None):
         return iou(pr.sigmoid(), gt, eps=eps, threshold=threshold, ignore_channels=ignore_channels)
+
 
     output_metric_fns["iou"] = partial(iou, threshold=0.5)
     output_metric_fns["iou_with_logits"] = partial(iou_with_logits, threshold=0.5)
@@ -215,6 +230,3 @@ loss_metric_fns = {
     "ppl": ppl,
 }
 metric_fns = {**output_metric_fns, **loss_metric_fns}  # TODO py3.9
-
-
-

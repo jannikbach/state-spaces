@@ -3,7 +3,7 @@ defaults:
   - /trainer: default
   - /loader: default
   - /dataset: traffic
-  - /task: regression
+  - /task: forecasting_base
   - /optimizer: adamw
   - /scheduler: plateau
 

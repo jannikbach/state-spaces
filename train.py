@@ -131,16 +131,9 @@ class SequenceLightningModule(pl.LightningModule):
         # Passing in config expands it one level, so can access by self.hparams.train instead of self.hparams.config.train
         self.save_hyperparameters(config, logger=False)
 
-        # Dataset arguments
-        print("fst registry:")
-        print(SequenceDataset.registry)
-
         self.dataset = SequenceDataset.registry[self.hparams.dataset._name_](
             **self.hparams.dataset
         )
-        #
-        # print("snd registry:")
-        # print(SequenceDataset.registry)
 
         # Check hparams
         self._check_config()
@@ -308,7 +301,7 @@ class SequenceLightningModule(pl.LightningModule):
         x, state = self.model(x, **w, state=self._state)
         self._state = state
         x, w = self.decoder(x, state=state, **z)
-        return x, y, w # y does not change, semms to be the ground truth and x is the prediction by the model.
+        return x, y, w
 
     def step(self, x_t):
         x_t, *_ = self.encoder(x_t) # Potential edge case for encoders that expect (B, L, H)?
@@ -341,11 +334,10 @@ class SequenceLightningModule(pl.LightningModule):
         metrics["loss"] = loss
         metrics = {f"{prefix}/{k}": v for k, v in metrics.items()} #this dict needs to also have the pred and the ground truth i it is the testing phase
 
-        if prefix == 'test':
-            print("test")
 
         # Calculate torchmetrics: these are accumulated and logged at the end of epochs
         self.task.torchmetrics(x, y, prefix)
+
 
         self.log_dict(
             metrics,
@@ -355,7 +347,9 @@ class SequenceLightningModule(pl.LightningModule):
             add_dataloader_idx=False,
             sync_dist=True,
         )
-        return loss #nur ein tensor wird zurückgegeben # hier vllt auch die pred und grputntruth als dict zurückgeben
+        # return loss #nur ein tensor wird zurückgegeben # hier vllt auch die pred und grputntruth als dict zurückgeben
+        output = {"loss": loss, "context": batch[0], "prediction": x, "ground_truth": y}
+        return output
 
     def on_train_epoch_start(self):
         self._on_epoch_start()
@@ -419,7 +413,7 @@ class SequenceLightningModule(pl.LightningModule):
         # Note that this currently runs into a bug in the progress bar with ddp (as of 1.4.6)
         # https://github.com/PyTorchLightning/pytorch-lightning/pull/9142
         # We additionally log the epochs under 'trainer' to get a consistent prefix with 'global_step'
-        loss_epoch = {"trainer/loss": loss, "trainer/epoch": self.current_epoch}
+        loss_epoch = {"trainer/loss": loss['loss'], "trainer/epoch": self.current_epoch}
         self.log_dict(
             loss_epoch,
             on_step=True,
@@ -462,11 +456,13 @@ class SequenceLightningModule(pl.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx, dataloader_idx=0):
-        return self._shared_step(
+        ret = self._shared_step(
             batch, batch_idx, prefix=self.test_loader_names[dataloader_idx]
             # chatGPT states that these return values are acuumulated and cna be accessed in callbacks using trainer.callback_metrics
             # maybe i have to call self.
         )
+
+        return ret
 
     def configure_optimizers(self):
 
