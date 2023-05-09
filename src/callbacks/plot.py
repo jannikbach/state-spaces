@@ -53,8 +53,8 @@ class PlotPredictionVersusGroundTruth(Callback):
             ax.plot(range(75), context[i, :, 0], label='Context')
 
             # Plot the other two arrays on the right side
-            ax.plot(range(74, 150), [context[i, -1, 0], predicted_output[i, :, 0]], label='Predicted')
-            ax.plot(range(74, 150), [context[i, -1, 0], ground_truth[i, :, 0]], label='Ground Truth')
+            ax.plot(range(74, 150), np.concatenate((context[i, :, 0], predicted_output[i, :, 0]))[74:150], label='Predicted')
+            ax.plot(range(74, 150), np.concatenate((context[i, :, 0], ground_truth[i, :, 0]))[74:150], label='Ground Truth')
 
             # Set the x-axis range to be 0 to 150
             ax.set_xlim(0, 150)

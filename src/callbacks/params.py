@@ -39,6 +39,3 @@ class ParamsLog(pl.Callback):
         if trainer.logger:
             trainer.logger.log_hyperparams(logs)
 
-    @rank_zero_only
-    def on_test_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
-        print("this is test start")
