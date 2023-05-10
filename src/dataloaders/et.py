@@ -228,6 +228,21 @@ class StandardScaler:
         )
         return (data * std) + mean
 
+class TrafficScaler:
+    def __init__(self):
+        self.mean = None
+        self.std = None
+
+    def fit(self, data_tensor):
+        self.mean = data_tensor.mean(dim=(1, 2), keepdim=True)
+        self.std = data_tensor.std(dim=(1, 2), keepdim=True)
+
+    def transform(self, data_tensor):
+        return (data_tensor - self.mean) / self.std
+
+    def inverse_transform(self, data_tensor):
+        return (data_tensor * self.std) + self.mean
+
 
 class InformerDataset(Dataset):
     def __init__(
@@ -327,7 +342,7 @@ class InformerDataset(Dataset):
         else:
             self.data_y = data[border1:border2]
 
-        self.data_stamp = data_stamp
+        self.data_stamp = data_stamp # for etth: [month day weekday hour]
 
     def __getitem__(self, index):
         s_begin = index
@@ -380,7 +395,15 @@ class InformerDataset(Dataset):
             mark = mark.astype(np.float32)
         mask = mask.astype(np.int64)
 
+        # here we use that we only take the last outputs of the model automatically, by using the respective decoder
+        # to apply this to the traffic data set I have to concatenate the context with the respective amount of zeros
+        # using np.concatenate.
+        # I still do not know what mark and mask are used for.
+        # mask and mark seem to be relevant for the transformers model. but s4 seems not to need it. also in the
+        # time encoder mask and mark are checked because it encodes the time for the datapoints in the mask.
+        # no idea why we need a timestamp in the mordel or if it even is fitted
         return torch.tensor(seq_x), torch.tensor(seq_y), torch.tensor(mark), torch.tensor(mask)
+
 
     def __len__(self):
         return len(self.data_x) - self.seq_len - self.pred_len + 1
@@ -645,6 +668,8 @@ class CustomTrafficDataset(Dataset):
             context_length=75,
             prediction_length=None,
             meta_batch_size=3500,
+            eval_mask=True,
+            scale=False,
             **kwargs,
     ):
 
@@ -654,6 +679,9 @@ class CustomTrafficDataset(Dataset):
         type_map = {"train": 0, "test": 1}
         self.set_type = type_map[flag]
 
+
+
+
         self.data_path = data_path
         self.pickle_file_name = pickle_file_name
         if prediction_length is None:
@@ -662,11 +690,15 @@ class CustomTrafficDataset(Dataset):
             self.data_path = default_data_path
         self.context_length = context_length
         self.meta_batch_size = meta_batch_size
+        self.eval_mask = eval_mask
+        self.scale = scale
         self.__read_data__()
 
     def __read_data__(self):
         # put data from file into a tensor once the class is created
         # depending on the flag create the train, validation or test set
+
+        self.scaler = TrafficScaler()
 
         # Train takes the first 80 flows and test takes the last 20
 
@@ -675,6 +707,10 @@ class CustomTrafficDataset(Dataset):
 
         with open(complete_path, 'rb') as f:
             self.train_obs = pickle.load(f)
+
+        if self.scale:
+            self.scaler.fit(self.train_obs)
+            self.train_obs = self.scaler.transform(self.train_obs)
 
         # 80 percent of the batches are used for training, 20 for testing
         num_train_batches = math.floor(self.train_obs.shape[0] * 0.8)
@@ -706,42 +742,41 @@ class CustomTrafficDataset(Dataset):
                     self.obs_batch[n:n+1, :, :] = candidate[np.newaxis, :]
 
                     n += 1
+        self.x = np.concatenate(
+            [self.obs_batch[:, :self.context_length, :], np.zeros((self.obs_batch.shape[0], self.prediction_length, self.obs_batch.shape[-1]), dtype=np.float32)], axis=1
+        )
 
+        # x = [meta_batch_size (3500), time (150), features (1)]
 
+        self.y = self.obs_batch[:, -self.prediction_length:, :]
 
-        # Old Code for meta batch generation
-        #
-        # idx_path = np.random.randint(0, num_paths,
-        #                              size=self.meta_batch_size)  # task index, which gets mixed along the  ## would
-        # # select flow numbers,e.g 3500 times from 1st flow to last tarin flow
-        #
-        # # process
-        # idx_batch = np.random.randint(self.context_length, len_path - self.prediction_length,
-        #                               size=self.meta_batch_size)  # would select some middle points from time-steps [
-        # # 0:10000], 3500 times
-        #
-        # self.obs_batch = np.array([self.train_obs[ip,
-        #                            ib - self.context_length:ib + self.prediction_length, :].numpy()
-        #                            for ip, ib in zip(idx_path, idx_batch)])
-        #
-        # # drop timeseries only consisting of zeros
-        # # seems like the most of them are actually full of zeros
-        # # also this code does not take overlapping into concern
+        # if self.eval_stamp:
+        #     mark = self.data_stamp[s_begin:r_end]
+        # else:
+        #     mark = self.data_stamp[s_begin:s_end]
+        #     mark = np.concatenate([mark, np.zeros((self.pred_len, mark.shape[-1]))], axis=0)
+
+        if self.eval_mask:
+            mask = np.concatenate([np.zeros(self.context_length), np.ones(self.prediction_length)], axis=0)
+        else:
+            mask = np.concatenate([np.zeros(self.context_length), np.zeros(self.prediction_length)], axis=0)
+        self.mask = mask[:, None]
 
 
     def __getitem__(self, idx):
-        return self.obs_batch[idx, :self.context_length, :], self.obs_batch[idx, self.context_length:, :]
+        return self.x[idx], self.y[idx], self.mask #, no mark given (could be timestamps used in embeddings, but not worth it because i only have 1 hour of data)
 
     def __len__(self):
-        return self.obs_batch.shape[0]
+        return self.x.shape[0]
 
     @property
     def d_input(self):
-        return self.obs_batch.shape[-1]
+        return self.x.shape[-1] # i think this maybe has to be the number of input verctors (150, self.x.shape[1]) ???
+    #already forgot how the encoding and feeding to the model works...
 
     @property
     def d_output(self):
-        return self.obs_batch.shape[-1]
+        return self.x.shape[-1]
 
     @property
     def l_output(self):
@@ -754,6 +789,8 @@ class CustomTrafficDataset(Dataset):
 
 class CustomTrafficSequenceDataset(SequenceDataset):
     _name_ = "traffic"
+
+    _collate_arg_names = ["mask"] # ["mark", "mask"]  # Names of the two extra tensors that the InformerDataset returns
 
     @property
     def d_input(self):
@@ -783,7 +820,7 @@ class CustomTrafficSequenceDataset(SequenceDataset):
             flag="train",
             pickle_file_name="tensor_data.pkl",
         )
-
+        # todo: change split to make sure the properties are accessible and correct
         self.split_train_val(0.1) # be careful, after the splitting the attributes are no longer accessible
 
         self.dataset_test = CustomTrafficDataset(

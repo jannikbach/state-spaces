@@ -254,7 +254,8 @@ class TimeEncoder(Encoder):
         else:
             time_encode = self.encoders(mark)
         mask_encode = self.mask_embed(mask.squeeze(-1))
-        return x + time_encode + mask_encode  # (B, L, d_model)
+        test = x + time_encode + mask_encode  # (B, L, d_model)
+        return test
 
 class EEGAgeEncoder(Encoder):
     def __init__(self, d_model):

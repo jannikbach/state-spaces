@@ -13,7 +13,7 @@ train:
 
 encoder:
   - linear
-  - _name_: time
+  - _name_: time # does embedding to find time specific dependencies
     timeenc: ${dataset.timeenc}
 
 decoder:
