@@ -30,13 +30,15 @@ class PlotPredictionVersusGroundTruth(Callback):
         y_hat = outputs["prediction"]
         y = outputs["ground_truth"]
         x = outputs["context"]
+
         self.predictions.append(y_hat)
         self.ground_truths.append(y)
         self.contexts.append(x)
 
 
+
     @rank_zero_only
-    def on_test_epoch_end(self, trainer, pl_module):
+    def on_test_end(self, trainer, pl_module):
 
         context_length = pl_module.task.dataset.dataset_test.context_length
         prediction_length = pl_module.task.dataset.dataset_test.prediction_length
@@ -47,7 +49,6 @@ class PlotPredictionVersusGroundTruth(Callback):
 
         context = np.concatenate(self.contexts, axis=0)[:, :context_length, :]
         # Create a plot that displays both the predicted values and the ground truth values for the feature
-        # todo: remove magic numbers
         for i in np.random.randint(0, predicted_output.shape[0], 20): #range(predicted_output.shape[0]):
             # Create a figure and axis object
             fig, ax = plt.subplots()
@@ -71,7 +72,6 @@ class PlotPredictionVersusGroundTruth(Callback):
             plt.title('Predicted vs. Ground Truth: ' + str(i))
             plt.xlabel('Time')
             plt.ylabel('Feature Value')
-            #plt.show()
 
             # Log the plot to WandB
             if trainer.logger is not None:

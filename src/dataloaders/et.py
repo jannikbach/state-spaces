@@ -229,19 +229,21 @@ class StandardScaler:
         return (data * std) + mean
 
 class TrafficScaler:
+
     def __init__(self):
-        self.mean = None
-        self.std = None
+        self.mean = 0.0
+        self.std = 1.0
+        self.new_zero = 0.0
 
     def fit(self, data_tensor):
-        self.mean = data_tensor.mean(dim=(1, 2), keepdim=True)
-        self.std = data_tensor.std(dim=(1, 2), keepdim=True)
+        self.mean = torch.mean(data_tensor, dim=1, keepdim=True)
+        self.std = torch.std(data_tensor, dim=1, keepdim=True)
+        self.new_zero = -torch.div(self.mean, self.std)
 
     def transform(self, data_tensor):
-        return (data_tensor - self.mean) / self.std
-
-    def inverse_transform(self, data_tensor):
-        return (data_tensor * self.std) + self.mean
+        self.mean = torch.mean(data_tensor, dim=1, keepdim=True)
+        self.std = torch.std(data_tensor, dim=1, keepdim=True)
+        return torch.div(torch.sub(data_tensor, self.mean), self.std)
 
 
 class InformerDataset(Dataset):
@@ -669,7 +671,7 @@ class CustomTrafficDataset(Dataset):
             prediction_length=None,
             meta_batch_size=3500,
             eval_mask=True,
-            scale=False,
+            scale=True,
             **kwargs,
     ):
 
@@ -698,19 +700,16 @@ class CustomTrafficDataset(Dataset):
         # put data from file into a tensor once the class is created
         # depending on the flag create the train, validation or test set
 
-        self.scaler = TrafficScaler()
-
         # Train takes the first 80 flows and test takes the last 20
 
         # Load the tensor from the file using pickle
         complete_path = os.path.join(self.data_path, self.pickle_file_name)
 
+        self.scaler = TrafficScaler()
+
         with open(complete_path, 'rb') as f:
             self.train_obs = pickle.load(f)
 
-        if self.scale:
-            self.scaler.fit(self.train_obs)
-            self.train_obs = self.scaler.transform(self.train_obs)
 
         # 80 percent of the batches are used for training, 20 for testing
         num_train_batches = math.floor(self.train_obs.shape[0] * 0.8)
@@ -719,7 +718,14 @@ class CustomTrafficDataset(Dataset):
         else:  # test
             self.train_obs = self.train_obs[num_train_batches:]
 
-        num_paths, len_path, features = self.train_obs.shape
+
+        self.scaler.fit(self.train_obs)
+        if self.scale:
+            self.train_obs_scaled = self.scaler.transform(self.train_obs)
+        else:
+            self.train_obs_scaled = self.train_obs
+
+        num_paths, len_path, features = self.train_obs_scaled.shape
 
         # Iterator that fills the np.array till it is full with non zero values
         # make sure random numbers only appear once
@@ -731,17 +737,21 @@ class CustomTrafficDataset(Dataset):
         while n < self.meta_batch_size:
             batch = np.random.randint(0, num_paths)
             middle_point = np.random.randint(self.context_length, len_path - self.prediction_length)
+
             if (batch, middle_point) not in used_points:
-                candidate = self.train_obs[batch,
+                candidate = self.train_obs_scaled[batch,
                             middle_point - self.context_length:middle_point + self.prediction_length, :].numpy()
                 #assure context and prediction have at least one non zero value
-                if (not np.all(candidate[:self.context_length]==0)) & (not np.all(candidate[self.context_length:]==0)):
+                no_information_level = self.scaler.new_zero[batch].item() if self.scale else 0
+                if (not np.all(candidate[:self.context_length] == no_information_level)) & (not np.all(candidate[self.context_length:] == no_information_level)):
                     used_points.append((batch, middle_point))
                     # self.obs_batch = np.insert(self.obs_batch, n, candidate, axis=0)
                     # same as above but in place
                     self.obs_batch[n:n+1, :, :] = candidate[np.newaxis, :]
-
                     n += 1
+
+        # we could do scaling here as well
+
         self.x = np.concatenate(
             [self.obs_batch[:, :self.context_length, :], np.zeros((self.obs_batch.shape[0], self.prediction_length, self.obs_batch.shape[-1]), dtype=np.float32)], axis=1
         )

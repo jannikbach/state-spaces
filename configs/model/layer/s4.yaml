@@ -15,7 +15,7 @@ weight_norm: false
 tie_dropout: ${oc.select:model.tie_dropout,null}
 # Kernel arguments
 mode: nplr
-init: legs  # Initialization option; new name for 'measure'
+init: legs  # Initialization option; new name for 'measure' #glagt scaled Laguerre
 measure: null  # Deprecated for 'init'
 rank: 1
 dt_min: 0.001

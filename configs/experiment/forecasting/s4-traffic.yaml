@@ -3,6 +3,8 @@ defaults:
   - /pipeline: traffic
   - /model: s4
   - override /dataset: traffic
+  - override /trainer: traffic
+
 
 trainer:
   max_epochs: 1
@@ -13,7 +15,8 @@ loader:
 model:
   dropout: 0.25
   n_layers: 2
-  d_model: 128
+  #override /layer/init: glagt
+  d_model: 128 # I use last bits to forecast. so forecast window is always the same. but i can insert more input to update state? in a recurrent manner with the prediction as input?
 
 optimizer:
   lr: 0.01
