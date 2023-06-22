@@ -9,7 +9,7 @@ from pathlib import Path
 import torch
 from torch import nn
 import torch.nn.functional as F
-import torchtext
+#import torchtext
 import torchvision
 from einops.layers.torch import Rearrange, Reduce
 from PIL import Image  # Only used for Pathfinder

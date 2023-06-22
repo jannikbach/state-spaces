@@ -829,6 +829,7 @@ class CustomTrafficSequenceDataset(SequenceDataset):
         self.dataset_train = CustomTrafficDataset(
             flag="train",
             pickle_file_name="tensor_data.pkl",
+            meta_batch_size=3500,
         )
         # todo: change split to make sure the properties are accessible and correct
         self.split_train_val(0.1) # be careful, after the splitting the attributes are no longer accessible
