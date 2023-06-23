@@ -228,6 +228,7 @@ class StandardScaler:
         )
         return (data * std) + mean
 
+
 class TrafficScaler:
 
     def __init__(self):
@@ -344,7 +345,7 @@ class InformerDataset(Dataset):
         else:
             self.data_y = data[border1:border2]
 
-        self.data_stamp = data_stamp # for etth: [month day weekday hour]
+        self.data_stamp = data_stamp  # for etth: [month day weekday hour]
 
     def __getitem__(self, index):
         s_begin = index
@@ -405,7 +406,6 @@ class InformerDataset(Dataset):
         # time encoder mask and mark are checked because it encodes the time for the datapoints in the mask.
         # no idea why we need a timestamp in the mordel or if it even is fitted
         return torch.tensor(seq_x), torch.tensor(seq_y), torch.tensor(mark), torch.tensor(mask)
-
 
     def __len__(self):
         return len(self.data_x) - self.seq_len - self.pred_len + 1
@@ -681,9 +681,6 @@ class CustomTrafficDataset(Dataset):
         type_map = {"train": 0, "test": 1}
         self.set_type = type_map[flag]
 
-
-
-
         self.data_path = data_path
         self.pickle_file_name = pickle_file_name
         if prediction_length is None:
@@ -710,14 +707,12 @@ class CustomTrafficDataset(Dataset):
         with open(complete_path, 'rb') as f:
             self.train_obs = pickle.load(f)
 
-
         # 80 percent of the batches are used for training, 20 for testing
         num_train_batches = math.floor(self.train_obs.shape[0] * 0.8)
         if self.set_type == 0:  # train
             self.train_obs = self.train_obs[:num_train_batches]
         else:  # test
             self.train_obs = self.train_obs[num_train_batches:]
-
 
         self.scaler.fit(self.train_obs)
         if self.scale:
@@ -732,7 +727,8 @@ class CustomTrafficDataset(Dataset):
 
         n = 0
         used_points = []
-        self.obs_batch = np.zeros([self.meta_batch_size, self.context_length+self.prediction_length, features], dtype=np.float32)
+        self.obs_batch = np.zeros([self.meta_batch_size, self.context_length + self.prediction_length, features],
+                                  dtype=np.float32)
 
         while n < self.meta_batch_size:
             batch = np.random.randint(0, num_paths)
@@ -741,19 +737,22 @@ class CustomTrafficDataset(Dataset):
             if (batch, middle_point) not in used_points:
                 candidate = self.train_obs_scaled[batch,
                             middle_point - self.context_length:middle_point + self.prediction_length, :].numpy()
-                #assure context and prediction have at least one non zero value
+                # assure context and prediction have at least one non zero value
                 no_information_level = self.scaler.new_zero[batch].item() if self.scale else 0
-                if (not np.all(candidate[:self.context_length] == no_information_level)) & (not np.all(candidate[self.context_length:] == no_information_level)):
+                if (not np.all(candidate[:self.context_length] == no_information_level)) & (
+                        not np.all(candidate[self.context_length:] == no_information_level)):
                     used_points.append((batch, middle_point))
                     # self.obs_batch = np.insert(self.obs_batch, n, candidate, axis=0)
                     # same as above but in place
-                    self.obs_batch[n:n+1, :, :] = candidate[np.newaxis, :]
+                    self.obs_batch[n:n + 1, :, :] = candidate[np.newaxis, :]
                     n += 1
 
         # we could do scaling here as well
 
         self.x = np.concatenate(
-            [self.obs_batch[:, :self.context_length, :], np.zeros((self.obs_batch.shape[0], self.prediction_length, self.obs_batch.shape[-1]), dtype=np.float32)], axis=1
+            [self.obs_batch[:, :self.context_length, :],
+             np.zeros((self.obs_batch.shape[0], self.prediction_length, self.obs_batch.shape[-1]), dtype=np.float32)],
+            axis=1
         )
 
         # x = [meta_batch_size (3500), time (150), features (1)]
@@ -773,16 +772,22 @@ class CustomTrafficDataset(Dataset):
         self.mask = mask[:, None]
 
 
+        print(self.x.shape)
+        print(self.y.shape)
+
+
     def __getitem__(self, idx):
-        return self.x[idx], self.y[idx], self.mask #, no mark given (could be timestamps used in embeddings, but not worth it because i only have 1 hour of data)
+        return self.x[idx], self.y[
+            idx], self.mask  # , no mark given (could be timestamps used in embeddings, but not worth it because i only have 1 hour of data)
 
     def __len__(self):
         return self.x.shape[0]
 
     @property
     def d_input(self):
-        return self.x.shape[-1] # i think this maybe has to be the number of input verctors (150, self.x.shape[1]) ???
-    #already forgot how the encoding and feeding to the model works...
+        return self.x.shape[-1]  # i think this maybe has to be the number of input verctors (150, self.x.shape[1]) ???
+
+    # already forgot how the encoding and feeding to the model works...
 
     @property
     def d_output(self):
@@ -800,7 +805,7 @@ class CustomTrafficDataset(Dataset):
 class CustomTrafficSequenceDataset(SequenceDataset):
     _name_ = "traffic"
 
-    _collate_arg_names = ["mask"] # ["mark", "mask"]  # Names of the two extra tensors that the InformerDataset returns
+    _collate_arg_names = ["mask"]  # ["mark", "mask"]  # Names of the two extra tensors that the InformerDataset returns
 
     @property
     def d_input(self):
@@ -832,10 +837,133 @@ class CustomTrafficSequenceDataset(SequenceDataset):
             meta_batch_size=3500,
         )
         # todo: change split to make sure the properties are accessible and correct
-        self.split_train_val(0.1) # be careful, after the splitting the attributes are no longer accessible
+        self.split_train_val(0.1)  # be careful, after the splitting the attributes are no longer accessible
 
         self.dataset_test = CustomTrafficDataset(
             flag="test",
             pickle_file_name="tensor_data.pkl",
             meta_batch_size=700,
+        )
+
+
+class CustomRobotDataset(Dataset):
+    def __init__(
+            self,
+            data_path=None,
+            pickle_file_name="SinData.pkl",
+            flag="train",
+            eval_mask=True,
+            **kwargs,
+    ):
+
+        super().__init__(**kwargs)
+        # init
+        assert flag in ["train", "test"]
+        type_map = {"train": 0, "test": 1}
+        self.set_type = type_map[flag]
+        self.data_path = data_path
+        self.pickle_file_name = pickle_file_name
+        if self.data_path is None:
+            self.data_path = default_data_path
+        self.eval_mask = eval_mask
+        self.__read_data__()
+
+    def __read_data__(self):
+        # depending on the flag create the train, validation or test set
+
+        # Load the tensor from the file using pickle
+        complete_path = os.path.join(self.data_path, self.pickle_file_name)
+
+        with open(complete_path, 'rb') as f:
+            self.data_dict = pickle.load(f)
+            print("Train Obs Shape", self.data_dict['train_obs'].shape)
+            # print("Train Act Shape", self.data_dict['train_act'].shape)
+            # print("Train Targets Shape", self.data_dict['train_targets'].shape)
+            # print("Test Obs Shape", self.data_dict['test_obs'].shape)
+            # print("Test Act Shape", self.data_dict['test_act'].shape)
+            # print("Test Targets Shape", self.data_dict['test_targets'].shape)
+            print("Normalizer", self.data_dict['normalizer'])
+
+        if self.set_type == 0:  # train
+            self.x = torch.cat((self.data_dict['train_obs'], self.data_dict['train_act']), dim=2)
+
+            self.y = self.data_dict['train_targets']
+        else:  # test
+            self.x = torch.cat((self.data_dict['test_obs'], self.data_dict['test_act']), dim=2)
+            self.y = self.data_dict['test_targets']
+
+        self.x = torch.cat((self.x, torch.zeros(self.x.shape[0], self.y.shape[1], self.x.shape[2], dtype=torch.float32)),
+                           dim=1)
+
+        if self.eval_mask:
+            mask = torch.cat((torch.zeros(self.x.shape[1]), torch.ones(self.y.shape[1])), axis=0)
+        else:
+            mask = torch.cat((torch.zeros(self.x.shape[1]), torch.zeros(self.y.shape[1])), axis=0)
+        self.mask = mask[:, None]
+
+        print(self.x.shape)
+        print(self.y.shape)
+        print(self.mask.shape)
+
+    def __getitem__(self, idx):
+        return self.x[idx], self.y[idx], self.mask
+
+    def __len__(self):
+        return self.x.shape[0]
+
+    @property
+    def d_input(self):
+        return self.x.shape[-1]  # i think this maybe has to be the number of input verctors (150, self.x.shape[1]) ???
+
+    # already forgot how the encoding and feeding to the model works...
+
+    @property
+    def d_output(self):
+        return self.y.shape[2]
+
+    @property
+    def l_output(self):
+        return self.self.y.shape[1]
+
+    @property
+    def forecast_horizon(self):
+        return self.y.shape[1]
+
+
+class CustomRobotSequenceDataset(SequenceDataset):
+    _name_ = "robot"
+
+    _collate_arg_names = [
+        "mask"]  # ["mark", "mask"]  # Names of the two extra tensors that the InformerDataset returns
+
+    @property
+    def d_input(self):
+        return self.dataset_test.d_input
+        # I assume this is the dimension of the data that goes into the encoder, which in this case is
+        # feature dimension (1)
+
+    @property
+    def d_output(self):
+        return self.dataset_test.d_output
+        # prediction feature dimension (same as input dimension)
+
+    @property
+    def l_output(self):
+        return self.dataset_test.l_output
+        # this is the dimension the decoder should transfer to
+        # is will be [batch-size, l_output, d_output]
+
+    @property
+    def forecast_horizon(self):
+        return self.dataset_test.forecast_horizon
+
+    def setup(self):
+        self.dataset_train = CustomRobotDataset(
+            flag="train",
+        )
+        # todo: change split to make sure the properties are accessible and correct
+        self.split_train_val(0.1)  # be careful, after the splitting the attributes are no longer accessible
+
+        self.dataset_test = CustomRobotDataset(
+            flag="test",
         )

@@ -14,7 +14,7 @@ defaults:
     - base
     - checkpoint
     - rich # RichProgressBar and RichModelSummary
-    - plot
+    # - plot
 
 # Additional arguments used to configure the training loop
 # Most of these set combinations of options in the PL trainer, add callbacks, or add features to the optimizer
