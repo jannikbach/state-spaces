@@ -299,7 +299,7 @@ def _instantiate(decoder, model=None, dataset=None):
     else:
         name = decoder["_name_"]
 
-    # Extract arguments from attribute names
+    # Extract arguments from attribute names # here the sequence length seems to be extracted.
     dataset_args = utils.config.extract_attrs_from_obj(
         dataset, *dataset_attrs.get(name, [])
     )

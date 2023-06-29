@@ -56,9 +56,9 @@ def extract_attrs_from_obj(obj, *attrs):
 
 
     attrs_final = [getattr(obj, attr, None) for attr in attrs]
-    # print("Obj: ", obj)
-    # print("Attrname: ", attrs)
-    # print("Attrvalue:", attrs_final)
+    print("Obj: ", obj)
+    print("Attrname: ", attrs)
+    print("Attrvalue:", attrs_final)
 
     return attrs_final
 
