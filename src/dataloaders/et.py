@@ -772,10 +772,6 @@ class CustomTrafficDataset(Dataset):
         self.mask = mask[:, None]
 
 
-        print(self.x.shape)
-        print(self.y.shape)
-
-
 
 
     def __getitem__(self, idx):
@@ -868,6 +864,7 @@ class CustomRobotDataset(Dataset):
         if self.data_path is None:
             self.data_path = default_data_path
         self.eval_mask = eval_mask
+        self.context_length = 0
         self.__read_data__()
 
     def __read_data__(self):
@@ -878,13 +875,13 @@ class CustomRobotDataset(Dataset):
 
         with open(complete_path, 'rb') as f:
             self.data_dict = pickle.load(f)
-            print("Train Obs Shape", self.data_dict['train_obs'].shape)
+            # print("Train Obs Shape", self.data_dict['train_obs'].shape)
             # print("Train Act Shape", self.data_dict['train_act'].shape)
             # print("Train Targets Shape", self.data_dict['train_targets'].shape)
             # print("Test Obs Shape", self.data_dict['test_obs'].shape)
             # print("Test Act Shape", self.data_dict['test_act'].shape)
             # print("Test Targets Shape", self.data_dict['test_targets'].shape)
-            print("Normalizer", self.data_dict['normalizer'])
+            # print("Normalizer", self.data_dict['normalizer'])
 
         if self.set_type == 0:  # train
             self.x = torch.cat((self.data_dict['train_obs'], self.data_dict['train_act']), dim=2)
@@ -894,6 +891,7 @@ class CustomRobotDataset(Dataset):
             self.x = torch.cat((self.data_dict['test_obs'], self.data_dict['test_act']), dim=2)
             self.y = self.data_dict['test_targets']
 
+        self.context_length =self.x.shape[1]
         self.x = torch.cat((self.x, torch.zeros(self.x.shape[0], self.y.shape[1], self.x.shape[-1], dtype=torch.float32)),
                            dim=1)
 
@@ -925,6 +923,10 @@ class CustomRobotDataset(Dataset):
     def l_output(self):
         return self.y.shape[1]
 
+    @property
+    def prediction_length(self):
+        return self.y.shape[1]
+
 class CustomRobotSequenceDataset(SequenceDataset):
     _name_ = "robot"
 
@@ -951,6 +953,14 @@ class CustomRobotSequenceDataset(SequenceDataset):
     @property
     def forecast_horizon(self):
         return self.dataset_test.forecast_horizon
+
+    @property
+    def context_length(self):
+        return self.dataset_test.context_length
+
+    @property
+    def prediction_length(self):
+        return self.dataset_test.prediction_length
 
     def setup(self):
         self.dataset_train = CustomRobotDataset(
