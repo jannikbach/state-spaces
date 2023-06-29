@@ -894,10 +894,8 @@ class CustomRobotDataset(Dataset):
             self.x = torch.cat((self.data_dict['test_obs'], self.data_dict['test_act']), dim=2)
             self.y = self.data_dict['test_targets']
 
-        print('context batches before cat: ', self.x.shape)
         self.x = torch.cat((self.x, torch.zeros(self.x.shape[0], self.y.shape[1], self.x.shape[-1], dtype=torch.float32)),
                            dim=1)
-        print('context batches after cat: ', self.x.shape)
 
 
         if self.eval_mask:
@@ -906,14 +904,8 @@ class CustomRobotDataset(Dataset):
             mask = torch.cat((torch.zeros(self.x.shape[1]), torch.zeros(self.y.shape[1])), axis=0)
         self.mask = mask[:, None]
 
-        print(self.x.shape)
-        print(self.y.shape)
-        print(self.mask.shape)
 
     def __getitem__(self, idx):
-        a = self.x[idx]
-        b = self.y[idx]
-        c = self.mask
         return self.x[idx], self.y[idx], self.mask
 
     def __len__(self):
@@ -931,12 +923,7 @@ class CustomRobotDataset(Dataset):
 
     @property
     def l_output(self):
-        return self.y.shape[1] # sollte 900 sein
-
-    # @property
-    # def forecast_horizon(self):
-    #     return self.y.shape[1] # sollte 900 sein damit decoder auch auf 900 schrumpft
-
+        return self.y.shape[1]
 
 class CustomRobotSequenceDataset(SequenceDataset):
     _name_ = "robot"
@@ -970,7 +957,7 @@ class CustomRobotSequenceDataset(SequenceDataset):
             flag="train",
         )
         # todo: change split to make sure the properties are accessible and correct
-        self.split_train_val(0.2)  # be careful, after the splitting the attributes are no longer accessible
+        self.split_train_val(0.1)  # be careful, after the splitting the attributes are no longer accessible
 
         self.dataset_test = CustomRobotDataset(
             flag="test",
