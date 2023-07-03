@@ -772,10 +772,6 @@ class CustomTrafficDataset(Dataset):
         self.mask = mask[:, None]
 
 
-        print(self.x.shape)
-        print(self.y.shape)
-
-
 
 
     def __getitem__(self, idx):
@@ -881,8 +877,8 @@ class CustomRobotDataset(Dataset):
 
         with open(complete_path, 'rb') as f:
             self.data_dict = pickle.load(f)
-            print("Train Obs Shape", self.data_dict['train_obs'].shape)
-            print("Train Act Shape", self.data_dict['train_act'].shape)
+            # print("Train Obs Shape", self.data_dict['train_obs'].shape)
+            # print("Train Act Shape", self.data_dict['train_act'].shape)
             # print("Train Targets Shape", self.data_dict['train_targets'].shape)
             # print("Test Obs Shape", self.data_dict['test_obs'].shape)
             # print("Test Act Shape", self.data_dict['test_act'].shape)

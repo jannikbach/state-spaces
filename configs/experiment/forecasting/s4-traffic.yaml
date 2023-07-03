@@ -7,7 +7,7 @@ defaults:
 
 
 trainer:
-  max_epochs: 1
+  max_epochs: 200
 
 loader:
   batch_size: 50
@@ -16,7 +16,7 @@ model:
   dropout: 0.25
   n_layers: 2
   #override /layer/init: glagt
-  d_model: 128 # I use last bits to forecast. so forecast window is always the same. but i can insert more input to update state? in a recurrent manner with the prediction as input?
+  d_model: 512 # I use last bits to forecast. so forecast window is always the same. but i can insert more input to update state? in a recurrent manner with the prediction as input?
 
 optimizer:
   lr: 0.01

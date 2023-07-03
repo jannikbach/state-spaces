@@ -21,6 +21,11 @@ class PlotPredictionVersusGroundTruth(Callback):
         }
 
     def save_step(self, key, outputs, replace=False):
+        # if outputs["prediction"].shape[2] > 1:
+        #     y_hat = outputs["prediction"][:, :, 0].cpu()
+        #     y = outputs["ground_truth"][:, :, 0].cpu()
+        #     x = outputs["context"][:, :, 0].cpu()
+        # else:
         y_hat = outputs["prediction"].cpu()
         y = outputs["ground_truth"].cpu()
         x = outputs["context"].cpu()
@@ -39,7 +44,7 @@ class PlotPredictionVersusGroundTruth(Callback):
         # Concatenate predicted output and ground truth across batches
         predicted_output = np.concatenate(self.data[key]['predictions'], axis=0)
         ground_truth = np.concatenate(self.data[key]['ground_truths'], axis=0)
-        context = np.concatenate(self.data[key]['contexts'], axis=0)[:, :context_length, :]
+        context = np.concatenate(self.data[key]['contexts'], axis=0)[:, :context_length] # check dim for traffic set.. this should be 2 dimesnional not 3
 
         # Create a plot that displays both the predicted values and the ground truth values for the feature
         for i in np.random.randint(0, predicted_output.shape[0], plot_count):
