@@ -779,8 +779,7 @@ class CustomTrafficDataset(Dataset):
 
 
     def __getitem__(self, idx):
-        return self.x[idx], self.y[
-            idx], self.mask  # , no mark given (could be timestamps used in embeddings, but not worth it because i only have 1 hour of data)
+        return self.x[idx], self.y[idx], self.mask  # , no mark given (could be timestamps used in embeddings, but not worth it because i only have 1 hour of data)
 
     def __len__(self):
         return self.x.shape[0]
@@ -855,6 +854,8 @@ class CustomRobotDataset(Dataset):
             pickle_file_name="SinData.pkl",
             flag="train",
             eval_mask=True,
+            train_test_border=700,
+            context_length = 150,
             **kwargs,
     ):
 
@@ -868,6 +869,8 @@ class CustomRobotDataset(Dataset):
         if self.data_path is None:
             self.data_path = default_data_path
         self.eval_mask = eval_mask
+        self.train_test_border = train_test_border
+        self.context_length = context_length
         self.__read_data__()
 
     def __read_data__(self):
@@ -879,30 +882,48 @@ class CustomRobotDataset(Dataset):
         with open(complete_path, 'rb') as f:
             self.data_dict = pickle.load(f)
             print("Train Obs Shape", self.data_dict['train_obs'].shape)
-            # print("Train Act Shape", self.data_dict['train_act'].shape)
+            print("Train Act Shape", self.data_dict['train_act'].shape)
             # print("Train Targets Shape", self.data_dict['train_targets'].shape)
             # print("Test Obs Shape", self.data_dict['test_obs'].shape)
             # print("Test Act Shape", self.data_dict['test_act'].shape)
             # print("Test Targets Shape", self.data_dict['test_targets'].shape)
-            print("Normalizer", self.data_dict['normalizer'])
+            # print("Normalizer", self.data_dict['normalizer'])
+            # ignore target
+            # first 150 is context, next 750 is target
+            # takes around 2000 epochs to converge, start with 1000
+
+            # 750 batches: 700 train (0.1 train val split) 50 test
+
+        self.obs = self.data_dict['train_obs']
+        self.act = self.data_dict['train_act']
 
         if self.set_type == 0:  # train
-            self.x = torch.cat((self.data_dict['train_obs'], self.data_dict['train_act']), dim=2)
-
-            self.y = self.data_dict['train_targets']
+            self.obs = self.obs[:self.train_test_border]
+            self.act = self.act[:self.train_test_border]
         else:  # test
-            self.x = torch.cat((self.data_dict['test_obs'], self.data_dict['test_act']), dim=2)
-            self.y = self.data_dict['test_targets']
+            self.obs = self.obs[self.train_test_border:]
+            self.act = self.act[self.train_test_border:]
 
-        self.x = torch.cat((self.x, torch.zeros(self.x.shape[0], self.y.shape[1], self.x.shape[-1], dtype=torch.float32)),
+        self.x = torch.cat((self.obs, self.act), dim=2)
+        self.x = self.x[:, :self.context_length, :]
+
+        self.y = torch.cat((torch.zeros(self.obs.shape), self.act), dim=2)
+
+        #use this if only act shpuld be target
+        #self.y = self.act
+        self.y = self.y[:, self.context_length:, :]
+
+        self.x = torch.cat((self.x, torch.zeros(self.obs.shape[0], self.obs.shape[1] - self.context_length, self.obs.shape[2] + self.act.shape[2], dtype=torch.float32)),
                            dim=1)
 
-
         if self.eval_mask:
-            mask = torch.cat((torch.zeros(self.x.shape[1]), torch.ones(self.y.shape[1])), axis=0)
+            mask = torch.cat((torch.zeros(self.context_length), torch.ones(self.y.shape[1])), dim=0)
         else:
-            mask = torch.cat((torch.zeros(self.x.shape[1]), torch.zeros(self.y.shape[1])), axis=0)
+            mask = torch.cat((torch.zeros(self.context_length), torch.zeros(self.y.shape[1])), dim=0)
         self.mask = mask[:, None]
+
+        print('set_type: ', self.set_type, ', x shape: ', self.x.shape)
+        print('set_type: ', self.set_type, ', y shape: ', self.y.shape)
 
 
     def __getitem__(self, idx):
@@ -962,3 +983,5 @@ class CustomRobotSequenceDataset(SequenceDataset):
         self.dataset_test = CustomRobotDataset(
             flag="test",
         )
+
+
