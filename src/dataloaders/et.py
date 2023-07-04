@@ -910,7 +910,7 @@ class CustomRobotDataset(Dataset):
         elif self.set_target == 1:  # mask_obs
             self.y = torch.cat((torch.zeros(self.obs.shape), self.act), dim=2)
         else:  # all
-            self.y = torch.cat((self.obs.shape, self.act), dim=2)
+            self.y = torch.cat((self.obs, self.act), dim=2)
 
         self.y = self.y[:, self.context_length:, :]
 
@@ -926,6 +926,7 @@ class CustomRobotDataset(Dataset):
 
         print('set_type: ', self.set_type, ', x shape: ', self.x.shape)
         print('set_type: ', self.set_type, ', y shape: ', self.y.shape)
+        #todo: switch mask so the actions are masked, or only predict the observations
 
     def __getitem__(self, idx):
         return self.x[idx], self.y[idx], self.mask

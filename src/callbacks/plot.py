@@ -49,9 +49,7 @@ class PlotPredictionVersusGroundTruth(Callback):
         # Create a plot that displays both the predicted values and the ground truth values for the feature
 
         #specific for robot data when obs is not part of target
-        #todo: make this auto fitting for all the datasets so it won't crash.
-        context_dim = 10
-        prediciton_dim = 1
+        dim = 1
         for i in np.random.randint(0, predicted_output.shape[0], plot_count):
             # Create a figure and axis object
             fig, ax = plt.subplots()
