@@ -47,21 +47,26 @@ class PlotPredictionVersusGroundTruth(Callback):
         context = np.concatenate(self.data[key]['contexts'], axis=0)[:, :context_length] # check dim for traffic set.. this should be 2 dimesnional not 3
 
         # Create a plot that displays both the predicted values and the ground truth values for the feature
+
+        #specific for robot data when obs is not part of target
+        #todo: make this auto fitting for all the datasets so it won't crash.
+        context_dim = 10
+        prediciton_dim = 1
         for i in np.random.randint(0, predicted_output.shape[0], plot_count):
             # Create a figure and axis object
             fig, ax = plt.subplots()
 
             # Plot the first array on the left side
-            ax.plot(range(context_length), context[i, :context_length, 0], label='Context')
+            ax.plot(range(context_length), context[i, :context_length, dim], label='Context')
 
             # Plot the other two arrays on the right side
             begin_double_plot = (context_length - 1)
             end_double_plot = (context_length + prediction_length)
             ax.plot(range(begin_double_plot, end_double_plot),
-                    np.concatenate((context[i, :, 0], predicted_output[i, :, 0]))[begin_double_plot:end_double_plot],
+                    np.concatenate((context[i, :, dim], predicted_output[i, :, dim]))[begin_double_plot:end_double_plot],
                     label='Predicted')
             ax.plot(range(begin_double_plot, end_double_plot),
-                    np.concatenate((context[i, :, 0], ground_truth[i, :, 0]))[begin_double_plot:end_double_plot],
+                    np.concatenate((context[i, :, dim], ground_truth[i, :, dim]))[begin_double_plot:end_double_plot],
                     label='Ground Truth')
 
             # Set the x-axis range to be 0 to 150
@@ -113,7 +118,7 @@ class PlotPredictionVersusGroundTruth(Callback):
     def on_test_end(self, trainer, pl_module):
 
         context_length = pl_module.task.dataset.dataset_test.context_length
-        prediction_length = pl_module.task.dataset.dataset_test.prediction_length
+        prediction_length = pl_module.task.dataset.dataset_test.l_output
 
         self.visualize_and_log(key='test',
                                context_length=context_length,

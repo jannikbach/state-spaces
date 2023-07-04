@@ -297,17 +297,17 @@ class SequenceLightningModule(pl.LightningModule):
             assert len(z) == 1 and isinstance(z[0], dict), "Dataloader must return dictionary of extra arguments"
             z = z[0]
 
-        print('x shape before encoder: ', x.shape)
+        # print('x shape before encoder: ', x.shape)
         x, w = self.encoder(x, **z) # w can model-specific constructions such as key_padding_mask for transformers or state for RNNs
-        print('x shape after encoder before model: ', x.shape)
+        # print('x shape after encoder before model: ', x.shape)
 
         # let's find out what are teh dimensions of the data
         x, state = self.model(x, **w, state=self._state)
-        print('x shape after model before decoder: ', x.shape)
+        # print('x shape after model before decoder: ', x.shape)
 
         self._state = state
         x, w = self.decoder(x, state=state, **z)
-        print('x shape after decoder: ', x.shape)
+        # print('x shape after decoder: ', x.shape)
         return x, y, w
 
     def step(self, x_t):

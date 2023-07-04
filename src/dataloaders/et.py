@@ -771,11 +771,9 @@ class CustomTrafficDataset(Dataset):
             mask = np.concatenate([np.zeros(self.context_length), np.zeros(self.prediction_length)], axis=0)
         self.mask = mask[:, None]
 
-
-
-
     def __getitem__(self, idx):
-        return self.x[idx], self.y[idx], self.mask  # , no mark given (could be timestamps used in embeddings, but not worth it because i only have 1 hour of data)
+        return self.x[idx], self.y[
+            idx], self.mask  # , no mark given (could be timestamps used in embeddings, but not worth it because i only have 1 hour of data)
 
     def __len__(self):
         return self.x.shape[0]
@@ -846,12 +844,13 @@ class CustomTrafficSequenceDataset(SequenceDataset):
 class CustomRobotDataset(Dataset):
     def __init__(
             self,
+            target="mask_obs",
             data_path=None,
             pickle_file_name="SinData.pkl",
             flag="train",
             eval_mask=True,
             train_test_border=700,
-            context_length = 150,
+            context_length=150,
             **kwargs,
     ):
 
@@ -860,6 +859,9 @@ class CustomRobotDataset(Dataset):
         assert flag in ["train", "test"]
         type_map = {"train": 0, "test": 1}
         self.set_type = type_map[flag]
+        assert target in ["act", "mask_obs", "all"]
+        target_map = {"act": 0, "mask_obs": 1, "all": 2}
+        self.set_target = target_map[target]
         self.data_path = data_path
         self.pickle_file_name = pickle_file_name
         if self.data_path is None:
@@ -903,13 +905,17 @@ class CustomRobotDataset(Dataset):
         self.x = torch.cat((self.obs, self.act), dim=2)
         self.x = self.x[:, :self.context_length, :]
 
-        self.y = torch.cat((torch.zeros(self.obs.shape), self.act), dim=2)
+        if self.set_target == 0:  # act
+            self.y = self.act
+        elif self.set_target == 1:  # mask_obs
+            self.y = torch.cat((torch.zeros(self.obs.shape), self.act), dim=2)
+        else:  # all
+            self.y = torch.cat((self.obs.shape, self.act), dim=2)
 
-        #use this if only act shpuld be target
-        #self.y = self.act
         self.y = self.y[:, self.context_length:, :]
 
-        self.x = torch.cat((self.x, torch.zeros(self.obs.shape[0], self.obs.shape[1] - self.context_length, self.obs.shape[2] + self.act.shape[2], dtype=torch.float32)),
+        self.x = torch.cat((self.x, torch.zeros(self.obs.shape[0], self.obs.shape[1] - self.context_length,
+                                                self.obs.shape[2] + self.act.shape[2], dtype=torch.float32)),
                            dim=1)
 
         if self.eval_mask:
@@ -920,7 +926,6 @@ class CustomRobotDataset(Dataset):
 
         print('set_type: ', self.set_type, ', x shape: ', self.x.shape)
         print('set_type: ', self.set_type, ', y shape: ', self.y.shape)
-
 
     def __getitem__(self, idx):
         return self.x[idx], self.y[idx], self.mask
@@ -941,6 +946,7 @@ class CustomRobotDataset(Dataset):
     @property
     def l_output(self):
         return self.y.shape[1]
+
 
 class CustomRobotSequenceDataset(SequenceDataset):
     _name_ = "robot"
@@ -972,12 +978,12 @@ class CustomRobotSequenceDataset(SequenceDataset):
     def setup(self):
         self.dataset_train = CustomRobotDataset(
             flag="train",
+            target=self.target,
         )
         # todo: change split to make sure the properties are accessible and correct
         self.split_train_val(0.1)  # be careful, after the splitting the attributes are no longer accessible
 
         self.dataset_test = CustomRobotDataset(
             flag="test",
+            target=self.target,
         )
-
-
