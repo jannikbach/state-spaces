@@ -1,6 +1,6 @@
 _name_: robot
-target: act  #[
-                  # "act": target is 4 dim action vector,
-                  # "mask_obs": target is 13 dim vector with 9 dim zero masked observation and 4 dim action,
+target: mask_act  #[
+                  # "obs": target is 9 dim observation vector,
+                  # "mask_act": target is 13 dim vector with 9 dim observation and 4 dim zero masked action,
                   # "all": target is 13 dim vector with 9 dim observation and 4 dim action,
                   # ]

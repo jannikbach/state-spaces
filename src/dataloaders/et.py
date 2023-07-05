@@ -859,9 +859,14 @@ class CustomRobotDataset(Dataset):
         assert flag in ["train", "test"]
         type_map = {"train": 0, "test": 1}
         self.set_type = type_map[flag]
-        assert target in ["act", "mask_obs", "all"]
-        target_map = {"act": 0, "mask_obs": 1, "all": 2}
+        assert target in ["obs", "mask_act", "all"]
+        target_map = {"obs": 0, "mask_act": 1, "all": 2}
         self.set_target = target_map[target]
+        # [
+        # "obs": target is 9 dim observation vector,
+        # "mask_act": target is 13 dim vector with 9 dim observation and 4 dim zero masked action,
+        # "all": target is 13 dim vector with 9 dim observation and 4 dim action,
+        # ]
         self.data_path = data_path
         self.pickle_file_name = pickle_file_name
         if self.data_path is None:
@@ -905,10 +910,10 @@ class CustomRobotDataset(Dataset):
         self.x = torch.cat((self.obs, self.act), dim=2)
         self.x = self.x[:, :self.context_length, :]
 
-        if self.set_target == 0:  # act
-            self.y = self.act
-        elif self.set_target == 1:  # mask_obs
-            self.y = torch.cat((torch.zeros(self.obs.shape), self.act), dim=2)
+        if self.set_target == 0:  # obs
+            self.y = self.obs
+        elif self.set_target == 1:  # mask_act
+            self.y = torch.cat((self.obs, torch.zeros(self.act.shape)), dim=2)
         else:  # all
             self.y = torch.cat((self.obs, self.act), dim=2)
 
@@ -926,7 +931,6 @@ class CustomRobotDataset(Dataset):
 
         print('set_type: ', self.set_type, ', x shape: ', self.x.shape)
         print('set_type: ', self.set_type, ', y shape: ', self.y.shape)
-        #todo: switch mask so the actions are masked, or only predict the observations
 
     def __getitem__(self, idx):
         return self.x[idx], self.y[idx], self.mask
