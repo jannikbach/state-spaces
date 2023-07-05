@@ -516,7 +516,7 @@ def dplr(
     elif init in ['quadratic', 'quad']:
         imag_part = 1/pi * (1+2*imag_part)**2
     elif init in ['legs', 'hippo']:
-        A, _, _, _ = nplr('legsd', N)
+        A, _, _, _ = nplr('legs', N)
         imag_part = -A.imag  # Positive
     else: raise NotImplementedError
     imag_part = imag_scale * imag_part
@@ -562,7 +562,7 @@ def dplr(
         B = B / zeta**.5
 
     # Initialize P
-    if B_init in ['legs', 'hippo', 'legsd']:
+    if B_init in ['legs', 'hippo']:
         # P constructed earlier
         P = repeat(P, 'r n -> r h n', h=H).clone().contiguous()
     else:
@@ -1716,6 +1716,8 @@ class FFTConv(nn.Module):
         # Kernel dropout
         k = self.drop_kernel(k)
 
+        # In principle, we could pad to l_kernel+L-1 instead of l_kernel+L, but we choose the latter for
+        # equational simplicity. Additionally, we have not experimented to compare the efficiency of the two.
         k_f = torch.fft.rfft(k, n=l_kernel+L) # (C H L)
         x_f = torch.fft.rfft(x, n=l_kernel+L) # (B H L)
         y_f = contract('bhl,chl->bchl', x_f, k_f)
