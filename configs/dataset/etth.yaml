@@ -3,7 +3,7 @@ size:
   - 384
   - 96
   - 96
-features: 'S'
+features: 'mask'
 target: 'OT'
 variant: 0
 scale: True

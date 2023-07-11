@@ -322,7 +322,7 @@ class InformerDataset(Dataset):
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
 
-        if self.features == "M" or self.features == "MS":
+        if self.features == "M" or self.features == "MS" or self.features == "mask":
             cols_data = df_raw.columns[1:]
             df_data = df_raw[cols_data]
         elif self.features == "S":
@@ -347,6 +347,11 @@ class InformerDataset(Dataset):
 
         self.data_stamp = data_stamp  # for etth: [month day weekday hour]
 
+
+        self.observation_dim = 4
+        self.action_dim = 3
+        assert (self.observation_dim + self.action_dim) == self.data_y.shape[-1]
+
     def __getitem__(self, index):
         s_begin = index
         s_end = s_begin + self.seq_len
@@ -354,9 +359,32 @@ class InformerDataset(Dataset):
         r_end = r_begin + self.label_len + self.pred_len
 
         seq_x = self.data_x[s_begin:s_end]
-        seq_x = np.concatenate(
-            [seq_x, np.zeros((self.pred_len, self.data_x.shape[-1]))], axis=0
-        )
+
+        observation_dim = 4
+        action_dim = 3
+
+        if self.features == "mask":
+            pred_input = np.concatenate(
+                [np.zeros((self.pred_len, observation_dim)), self.data_x[s_end:s_end + self.pred_len, -action_dim:]],
+                axis=1
+            )
+            # use masking here to give the actions as input (first 4 are observations, last 3 are actions)
+            seq_x = np.concatenate(
+                [seq_x, pred_input], axis=0
+            )
+
+            x = self.data_x[s_begin:s_end + self.pred_len, -action_dim:]
+            x_dash = seq_x[:, -action_dim:]
+
+            assert np.array_equal(x, x_dash)
+            #todo: make asertions, that the data is equal for the action values.
+
+        else:
+            seq_x = np.concatenate(
+                [seq_x, np.zeros((self.pred_len, self.data_x.shape[-1]))], axis=0
+            )
+
+
 
         if self.inverse:
             seq_y = np.concatenate(
@@ -370,6 +398,10 @@ class InformerDataset(Dataset):
         else:
             # seq_y = self.data_y[r_begin:r_end] # OLD in Informer codebase
             seq_y = self.data_y[s_end:r_end]
+
+        # after defining the return type, lets remove the signals interpreted as actions. those are the last 3
+        if self.features == 'mask':
+            seq_y = seq_y[:, :-self.action_dim]
 
         # OLD in Informer codebase
         # seq_x_mark = self.data_stamp[s_begin:s_end]
@@ -423,6 +455,8 @@ class InformerDataset(Dataset):
             return self.data_x.shape[-1]
         elif self.features == "MS":
             return 1
+        elif self.features == "mask":
+            return self.data_y.shape[-1] - self.action_dim
         else:
             raise NotImplementedError
 
@@ -460,6 +494,13 @@ class _Dataset_ETT_hour(InformerDataset):
     def n_tokens_time(self):
         assert self.freq == "h"
         return [13, 32, 7, 24]
+
+    @property
+    def context_length(self):
+        return self.seq_len
+
+    def l_output(self):
+        return self.pred_len
 
 
 class _Dataset_ETT_minute(_Dataset_ETT_hour):
