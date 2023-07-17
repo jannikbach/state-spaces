@@ -20,6 +20,7 @@ scheduler = {
 
 callbacks = {
     "plot_prediction_and_ground_truth":             "src.callbacks.plot.PlotPredictionVersusGroundTruth",
+    "plot_time_series":             "src.callbacks.plotts.PlotTimeSeries",
     "timer":                 "src.callbacks.timer.Timer",
     "params":                "src.callbacks.params.ParamsLog",
     "learning_rate_monitor": "pytorch_lightning.callbacks.LearningRateMonitor",

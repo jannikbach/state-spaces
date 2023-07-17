@@ -499,6 +499,7 @@ class _Dataset_ETT_hour(InformerDataset):
     def context_length(self):
         return self.seq_len
 
+    @property
     def l_output(self):
         return self.pred_len
 

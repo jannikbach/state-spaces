@@ -3,7 +3,7 @@ size:
   - 384
   - 96
   - 96
-features: 'S'
+features: 'MS'
 target: 'WetBulbCelsius'
 variant: 0
 scale: True
