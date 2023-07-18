@@ -399,13 +399,13 @@ class InformerDataset(Dataset):
             # seq_y = self.data_y[r_begin:r_end] # OLD in Informer codebase
             seq_y = self.data_y[s_end:r_end]
 
-        # after defining the return type, lets remove the signals interpreted as actions. those are the last 3
-        if self.features == 'mask':
-            seq_y = seq_y[:, :-self.action_dim]
-
         # OLD in Informer codebase
         # seq_x_mark = self.data_stamp[s_begin:s_end]
         # seq_y_mark = self.data_stamp[r_begin:r_end]
+
+        # after defining the return type, lets remove the signals interpreted as actions. those are the last 3
+        if self.features == 'mask':
+            seq_y = seq_y[:, :-self.action_dim]
 
         if self.eval_stamp:
             mark = self.data_stamp[s_begin:r_end]

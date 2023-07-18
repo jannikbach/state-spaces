@@ -2,8 +2,8 @@ _name_: etth
 size:
   - 384
   - 96
-  - 96
-features: 'mask'
+  - 48
+features: 'M'
 target: 'OT'
 variant: 0
 scale: True
