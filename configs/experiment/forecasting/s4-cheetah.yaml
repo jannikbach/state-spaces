@@ -1,0 +1,24 @@
+# @package _global_
+defaults:
+  - /pipeline: cheetah
+  - /model: s4
+  - override /trainer: cheetah
+
+
+trainer:
+  max_epochs: 200
+
+loader:
+  batch_size: 50
+
+model:
+  dropout: 0.25
+  n_layers: 2
+  #override /layer/init: glagt
+  d_model: 256 # I use last bits to forecast. so forecast window is always the same. but i can insert more input to update state? in a recurrent manner with the prediction as input?
+  layer:
+    d_state: 64
+
+
+optimizer:
+  lr: 0.01
