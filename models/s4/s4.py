@@ -985,8 +985,8 @@ class SSMKernelDiag(SSMKernel):
         Parameterize the real/imag parts of the diagonal of A under this function.
     bandlimit: Mask high frequencies of the kernel (indices corresponding to
         diagonal elements with large imaginary part). Introduced in S4ND paper.
-    kernel: ['cuda' | 'keops' | 'naive'] Options for Vandermonde/Cauchy kernel (in order of efficiency).
-    force_real : Force A to have 0 imaginary part, to emulate EMA.
+    backend: ['cuda' | 'keops' | 'naive'] Options for Vandermonde/Cauchy kernel (in order of efficiency).
+    is_real : Real-valued SSM; can be interpreted as EMA.
     """
 
     def __init__(
@@ -996,18 +996,21 @@ class SSMKernelDiag(SSMKernel):
         real_transform: str = 'exp',
         imag_transform: str = 'none',
         bandlimit: Optional[float] = None,
-        kernel: str = 'cuda',
-        force_real: bool = False,
+        backend: str = 'cuda',
+        is_real: bool = False,
         **kwargs,
     ):
+        # Special case: for real-valued, d_state semantics change
+        if is_real and 'd_state' in kwargs:
+            kwargs['d_state'] = kwargs['d_state'] * 2
         super().__init__(**kwargs)
         self.disc = disc
         self.dt_fast = dt_fast
         self.real_transform = real_transform
         self.imag_transform = imag_transform
         self.bandlimit = bandlimit
-        self.kernel = kernel
-        self.force_real = force_real
+        self.backend = backend
+        self.is_real = is_real
 
         # Initialize dt, A, B, C
         inv_dt = self.init_dt()
@@ -1035,7 +1038,7 @@ class SSMKernelDiag(SSMKernel):
         Note: tensor shape N here denotes half the true state size, because of conjugate symmetry
         """
 
-        assert self.kernel in ['cuda', 'keops', 'naive']
+        assert self.backend in ['cuda', 'keops', 'naive']
 
         if self.dt_fast: inv_dt = torch.asinh(inv_dt)
 
@@ -1053,31 +1056,37 @@ class SSMKernelDiag(SSMKernel):
         # Broadcast everything to correct shapes
         C = C.expand(torch.broadcast_shapes(C.shape, (1, self.H, self.N))) # (C, H, N)  # TODO originally this was only in DPLR, check safe for Diag
         B = B.unsqueeze(0) # (1, H, N)
-
         assert self.channels == C.shape[0]
-        self.C = nn.Parameter(_c2r(_resolve_conj(C)))
 
-        # Register dt, B, A
+        # Register dt
         self.register("inv_dt", inv_dt, self.lr_dict['dt'], self.wd_dict['dt'])
-        self.register("B", _c2r(B), self.lr_dict['B'], self.wd_dict['B'])
-        self.register("A_real", inv_transform(-A.real, self.real_transform), self.lr_dict['A'], self.wd_dict['A'])
-        self.register("A_imag", inv_transform(-A.imag, self.imag_transform), self.lr_dict['A'], self.wd_dict['A'])
+        # Register ABC
+        if self.is_real:
+            self.register("C", C.real, self.lr_dict['C'], None)
+            self.register("B", B.real, self.lr_dict['B'], self.wd_dict['B'])
+            self.register("A_real", inv_transform(-A.real, self.real_transform), self.lr_dict['A'], self.wd_dict['A'])
+        else:
+            self.register("C", _c2r(_resolve_conj(C)), self.lr_dict['C'], None)
+            self.register("B", _c2r(B), self.lr_dict['B'], self.wd_dict['B'])
+            self.register("A_real", inv_transform(-A.real, self.real_transform), self.lr_dict['A'], self.wd_dict['A'])
+            self.register("A_imag", inv_transform(-A.imag, self.imag_transform), self.lr_dict['A'], self.wd_dict['A'])
 
     def _get_params(self, rate=1.0):
         """Process the internal parameters."""
 
         # (S N) where S=n_ssm
-        A = -param_transform(self.A_real, self.real_transform) - 1j * param_transform(self.A_imag, self.imag_transform)
-        B = _r2c(self.B) # (1 S N)
-        C = _r2c(self.C) # (C H N)
+        if self.is_real:
+            A = -param_transform(self.A_real, self.real_transform)
+            B = self.B # (1 S N)
+            C = self.C # (C H N)
+        else:
+            A = -param_transform(self.A_real, self.real_transform) - 1j * param_transform(self.A_imag, self.imag_transform)
+            B = _r2c(self.B) # (1 S N)
+            C = _r2c(self.C) # (C H N)
 
         if self.dt_fast: inv_dt = torch.sinh(self.inv_dt)
         else: inv_dt = self.inv_dt
         dt = param_transform(inv_dt, self.dt_transform) * rate # (H N)
-
-        # Force A to be real valued, so the whole kernel can be interpreted as a "multi-head EMA"
-        if self.force_real:
-            A = A.real + 0j
 
         if self.bandlimit is not None:
             freqs = dt / rate * A.imag.abs() / (2*math.pi) # (H N)
@@ -1115,9 +1124,9 @@ class SSMKernelDiag(SSMKernel):
         C = (B[:, None, :, :] * C).view(-1, self.H, self.N)
 
         # Dispatch which Vandermonde kernel to use
-        if has_cuda_extension and C.dtype == torch.cfloat and C.device.type == 'cuda' and self.kernel == 'cuda':
+        if has_cuda_extension and C.dtype == torch.cfloat and C.device.type == 'cuda' and self.backend == 'cuda':
             log_vandermonde = log_vandermonde_cuda
-        elif has_pykeops and self.kernel in ['cuda', 'keops']:
+        elif has_pykeops and self.backend in ['cuda', 'keops']:
             log_vandermonde = log_vandermonde_keops
         else:
             log_vandermonde = log_vandermonde_naive
@@ -1197,13 +1206,14 @@ class SSMKernelDiag(SSMKernel):
         AL = self.dA ** u.size(-1)
         u = u.flip(-1).to(self.dA).contiguous() # (B H L)
         # Dispatch which Vandermonde kernel to use
-        if has_pykeops and self.kernel in ['cuda', 'keops']:
+        if has_pykeops and self.backend in ['cuda', 'keops']:
             log_vandermonde_transpose = log_vandermonde_transpose_keops
         else:
             log_vandermonde_transpose = log_vandermonde_transpose_naive
         v = log_vandermonde_transpose(u, self.dB, self.dA.log(), u.size(-1))
         next_state = AL * state + v
         return next_state
+
 
 class SSMKernelDPLR(SSMKernelDiag):
     """SSM kernel for diagonal + low rank (DPLR) state matrices, corresponding to the original S4 model."""
