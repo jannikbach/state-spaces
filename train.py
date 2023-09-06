@@ -11,7 +11,12 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import wandb
+from hydra.core.global_hydra import GlobalHydra
+from hydra.core.plugins import Plugins
 from hydra.utils import get_original_cwd
+from omegaconf import DictConfig
+from hydra.core.hydra_config import HydraConfig
+from hydra.experimental import compose, initialize
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only, rank_zero_warn
@@ -829,13 +834,15 @@ def preemption_setup(config):
     return config
 
 
-@hydra.main(config_path="configs", config_name="config.yaml")
-def main(config: OmegaConf):
+#@hydra.main(config_path="configs", config_name="config.yaml")
+def main(config: DictConfig):
 
     # Process config:
     # - register evaluation resolver
     # - filter out keys used only for interpolation
     # - optional hooks, including disabling python warnings or debug friendly configuration
+    print(config)
+
     config = utils.train.process_config(config)
 
     # Pretty print config using Rich library
@@ -847,4 +854,8 @@ def main(config: OmegaConf):
 
 
 if __name__ == "__main__":
-    main()
+
+    with initialize(config_path="configs"):
+        cfg = compose(config_name="config.yaml")
+
+    main(cfg)
