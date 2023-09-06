@@ -942,6 +942,12 @@ class CustomRobotDataset(Dataset):
         self.obs = self.data_dict['train_obs']
         self.act = self.data_dict['train_act']
 
+        #scaler and fitting here
+        #
+        #
+        #
+        #
+
         if self.set_type == 0:  # train
             self.obs = self.obs[:self.train_test_border]
             self.act = self.act[:self.train_test_border]
@@ -950,7 +956,7 @@ class CustomRobotDataset(Dataset):
             self.act = self.act[self.train_test_border:]
 
         self.x = torch.cat((self.obs, self.act), dim=2)
-        self.x = self.x[:, :self.context_length, :]
+        self.x[:, self.context_length:, self.obs.shape[2]:] = 0
 
         if self.set_target == 0:  # obs
             self.y = self.obs
@@ -961,9 +967,9 @@ class CustomRobotDataset(Dataset):
 
         self.y = self.y[:, self.context_length:, :]
 
-        self.x = torch.cat((self.x, torch.zeros(self.obs.shape[0], self.obs.shape[1] - self.context_length,
-                                                self.obs.shape[2] + self.act.shape[2], dtype=torch.float32)),
-                           dim=1)
+        # self.x = torch.cat((self.x, torch.zeros(self.obs.shape[0], self.obs.shape[1] - self.context_length,
+        #                                         self.obs.shape[2] + self.act.shape[2], dtype=torch.float32)),
+        #                    dim=1)
 
         if self.eval_mask:
             mask = torch.cat((torch.zeros(self.context_length), torch.ones(self.y.shape[1])), dim=0)
@@ -1093,6 +1099,11 @@ class CustomHalfCheetahDataset(Dataset):
         self.obs = self.data_dict['train_obs']
         self.act = self.data_dict['train_act']
 
+        # scaling and fitting here
+        # or let it be
+        #
+        #
+
         if self.set_type == 0:  # train
             self.obs = self.obs[:self.train_test_border]
             self.act = self.act[:self.train_test_border]
@@ -1101,7 +1112,7 @@ class CustomHalfCheetahDataset(Dataset):
             self.act = self.act[self.train_test_border:]
 
         self.x = torch.cat((self.obs, self.act), dim=2)
-        self.x = self.x[:, :self.context_length, :]
+        self.x[:, self.context_length:, self.obs.shape[2]:] = 0
 
         if self.set_target == 0:  # obs
             self.y = self.obs
@@ -1112,9 +1123,9 @@ class CustomHalfCheetahDataset(Dataset):
 
         self.y = self.y[:, self.context_length:, :]
 
-        self.x = torch.cat((self.x, torch.zeros(self.obs.shape[0], self.obs.shape[1] - self.context_length,
-                                                self.obs.shape[2] + self.act.shape[2], dtype=torch.float32)),
-                           dim=1)
+        # self.x = torch.cat((self.x, torch.zeros(self.obs.shape[0], self.obs.shape[1] - self.context_length,
+        #                                         self.obs.shape[2] + self.act.shape[2], dtype=torch.float32)),
+        #                    dim=1)
 
         if self.eval_mask:
             mask = torch.cat((torch.zeros(self.context_length), torch.ones(self.y.shape[1])), dim=0)

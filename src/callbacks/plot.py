@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, Optional
 
 import numpy as np
@@ -139,3 +140,16 @@ class PlotPredictionVersusGroundTruth(Callback):
                                plot_count=2,
                                logger=trainer.logger,
                                )
+
+        predicted_output = np.concatenate(self.data['test']['predictions'], axis=0)
+        ground_truth = np.concatenate(self.data['test']['ground_truths'], axis=0)
+        context = np.concatenate(self.data['test']['contexts'], axis=0)[:, :context_length]
+
+        file_path = Path(__file__)
+        file_path = file_path.parent.parent.parent / 'tmp' / (trainer.logger.experiment.name + '.npz')
+
+        np.savez(file=str(file_path),
+                 context=context,
+                 ground_truth=ground_truth,
+                 predicted_output=predicted_output,
+                 )
