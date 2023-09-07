@@ -6,6 +6,16 @@ from hydra.experimental import compose, initialize
 import train
 
 
+def compose_overrides(param_dict, parent_key='', sep='.'):
+    items = []
+    for k, v in param_dict.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(compose_overrides(v, new_key, sep=sep))
+        else:
+            items.append(f"{new_key}={v}")
+    return items
+
 class MyExperiment(experiment.AbstractExperiment):
     # ...
 
@@ -15,14 +25,19 @@ class MyExperiment(experiment.AbstractExperiment):
 
     def run(self, config: dict, rep: int, logger: cw_logging.LoggerArray) -> None:
         # Perform your existing task)
-        print(config) #config['params']['overrides'],
-        with initialize(config_path="configs"):
-            cfg = compose(config_name="config.yaml", overrides=[config['params']['overrides']])
+
+        with initialize(config_path="./configs"):
+            overrides = compose_overrides(config['params'])
+            print(overrides)
+            cfg = compose(config_name="config.yaml", overrides=overrides)
         train.main(cfg)
 
     def finalize(self, surrender: cw_error.ExperimentSurrender = None, crash: bool = False):
         # Skip for Quickguide
         pass
+
+
+
 
 
 from cw2 import cluster_work

@@ -7,7 +7,7 @@ defaults:
 
 
 trainer:
-  max_epochs: 1
+  max_epochs: 200
 
 loader:
   batch_size: 50

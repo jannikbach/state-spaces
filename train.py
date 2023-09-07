@@ -854,8 +854,5 @@ def main(config: DictConfig):
 
 
 if __name__ == "__main__":
+    main()
 
-    with initialize(config_path="configs"):
-        cfg = compose(config_name="config.yaml")
-
-    main(cfg)

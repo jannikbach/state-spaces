@@ -70,14 +70,14 @@ tolerance: # fault tolerance for training on preemptible machines
 # Set `~wandb` or `wandb=null` or `wandb.mode=disabled` to disable logging
 # If other loggers are added, it would make sense to put this one level lower under train/ or logger/
 wandb:
-  project: hippo
+  project: s4cluster
   group: ""
   job_type: training
   mode: online # choices=['online', 'offline', 'disabled']
   save_dir: "."
   id: null # pass correct id to resume experiment!
   # Below options should not need to be specified
-  # entity: ""  # set to name of your wandb team or just remove it
+  entity: "jannik-bach"  # set to name of your wandb team or just remove it
   # log_model: False
   # prefix: ""
   # job_type: "train"
