@@ -8,7 +8,7 @@ target: 'OT'
 variant: 0
 scale: True
 inverse: False
-timeenc: 0
+timeenc: 1
 eval_stamp: False
 eval_mask: False
 # freq: 'h' # Shouldn't touch
