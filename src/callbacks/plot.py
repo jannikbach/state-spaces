@@ -120,6 +120,20 @@ class PlotPredictionVersusGroundTruth(Callback):
         context_length = pl_module.task.dataset.dataset_test.context_length
         prediction_length = pl_module.task.dataset.dataset_test.l_output
 
+        predicted_output = np.concatenate(self.data['test']['predictions'], axis=0)
+        ground_truth = np.concatenate(self.data['test']['ground_truths'], axis=0)
+        context = np.concatenate(self.data['test']['contexts'], axis=0)[:, :context_length]
+
+        file_path = Path(__file__)
+        file_path = file_path.parent.parent.parent / 'tmp' / (trainer.logger.experiment.name + '.npz')
+
+        np.savez(file=str(file_path),
+                 context=context,
+                 ground_truth=ground_truth,
+                 predicted_output=predicted_output,
+                 )
+        print('filez saved')
+
         self.visualize_and_log(key='test',
                                context_length=context_length,
                                prediction_length=prediction_length,
@@ -141,15 +155,4 @@ class PlotPredictionVersusGroundTruth(Callback):
                                logger=trainer.logger,
                                )
 
-        predicted_output = np.concatenate(self.data['test']['predictions'], axis=0)
-        ground_truth = np.concatenate(self.data['test']['ground_truths'], axis=0)
-        context = np.concatenate(self.data['test']['contexts'], axis=0)[:, :context_length]
 
-        file_path = Path(__file__)
-        file_path = file_path.parent.parent.parent / 'tmp' / (trainer.logger.experiment.name + '.npz')
-
-        np.savez(file=str(file_path),
-                 context=context,
-                 ground_truth=ground_truth,
-                 predicted_output=predicted_output,
-                 )

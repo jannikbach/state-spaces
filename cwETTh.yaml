@@ -10,7 +10,7 @@ time: 300   # in minutes
 sbatch_args:   # gpus need to be explicitly requested using this
   gres: "gpu:1" #and this
 ---
-name: "my_experiment"
+name: "etth"
 path: "/home/kit/anthropomatik/fu2759/state-spaces/out"
 repetitions: 1 # how many hyperparameter combinations should be tried? wieso denn 5 mal amk wenn ich doch nur ein 3x3 grid angebe. macht gar keinen sinn
 reps_per_job: 1 # 2 würde sequentiell die liste in einen job
@@ -31,10 +31,10 @@ params:
         A: 0.001
         B: 0.001
   dataset:
-    feature: "M"
+    features: "M"
     timeenc: 1
 
 list:
   dataset:
-    size: [[384, 168, 720], [384, 168, 2180]]
+    size: [[384, 168, 720], [384, 168, 1440], [384, 168, 1920]]
 

@@ -833,7 +833,7 @@ def preemption_setup(config):
 
     return config
 
-
+# uncomment this when not on cluster
 #@hydra.main(config_path="configs", config_name="config.yaml")
 def main(config: DictConfig):
 
@@ -841,7 +841,6 @@ def main(config: DictConfig):
     # - register evaluation resolver
     # - filter out keys used only for interpolation
     # - optional hooks, including disabling python warnings or debug friendly configuration
-    print(config)
 
     config = utils.train.process_config(config)
 
