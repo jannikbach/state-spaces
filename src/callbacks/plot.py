@@ -133,26 +133,26 @@ class PlotPredictionVersusGroundTruth(Callback):
                  predicted_output=predicted_output,
                  )
         print('filez saved')
-
-        self.visualize_and_log(key='test',
-                               context_length=context_length,
-                               prediction_length=prediction_length,
-                               plot_count=3,
-                               logger=trainer.logger,
-                               )
-
-        self.visualize_and_log(key='validation',
-                               context_length=context_length,
-                               prediction_length=prediction_length,
-                               plot_count=2,
-                               logger=trainer.logger,
-                               )
-
-        self.visualize_and_log(key='train',
-                               context_length=context_length,
-                               prediction_length=prediction_length,
-                               plot_count=2,
-                               logger=trainer.logger,
-                               )
+        #
+        # self.visualize_and_log(key='test',
+        #                        context_length=context_length,
+        #                        prediction_length=prediction_length,
+        #                        plot_count=3,
+        #                        logger=trainer.logger,
+        #                        )
+        #
+        # self.visualize_and_log(key='validation',
+        #                        context_length=context_length,
+        #                        prediction_length=prediction_length,
+        #                        plot_count=2,
+        #                        logger=trainer.logger,
+        #                        )
+        #
+        # self.visualize_and_log(key='train',
+        #                        context_length=context_length,
+        #                        prediction_length=prediction_length,
+        #                        plot_count=2,
+        #                        logger=trainer.logger,
+        #                        )
 
 

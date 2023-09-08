@@ -16,25 +16,23 @@ repetitions: 1 # how many hyperparameter combinations should be tried? wieso den
 reps_per_job: 1 # 2 würde sequentiell die liste in einen job
 reps_in_parallel: 1
 params:
-  experiment: "forecasting/s4-informer-etth"
+  experiment: "forecasting/s4-cheetah"
   wandb:
-    project: "state-spaces-etth"
+    project: "state-spaces-cheetah"
   trainer:
-    max_epochs: 20
+    max_epochs: 500
   model:
-    d_model: 128
     n_layers: 2
     layer:
-      d_state: 128
       lr:
         dt: 0.001
         A: 0.001
         B: 0.001
-  dataset:
-    features: "M"
-    timeenc: 1
 
-list:
-  dataset:
-    size: [[384, 168, 720], [384, 168, 1440], [384, 168, 1920]]
+
+grid:
+  model:
+    d_model: [128, 256, 512]
+    layer:
+      d_state: [32, 64, 128, 256]
 
